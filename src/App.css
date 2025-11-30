@@ -1,0 +1,28 @@
+/* Estilos adicionales para la aplicación */
+.shield-icon {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #66C2E0 0%, #1A4B9F 100%);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+.castle-wall-pattern {
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 10px,
+      rgba(102, 194, 224, 0.1) 10px,
+      rgba(102, 194, 224, 0.1) 20px
+    ),
+    radial-gradient(circle at 20% 30%, rgba(102, 194, 224, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(102, 194, 224, 0.05) 0%, transparent 50%);
+}
+
+.scroll-button {
+  background: linear-gradient(135deg, #FF8C00 0%, #FFA500 100%);
+  box-shadow: 0 4px 15px rgba(255, 140, 0, 0.6), 0 0 20px rgba(255, 140, 0, 0.4);
+  position: relative;
+}
+

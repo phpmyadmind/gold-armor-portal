@@ -1,0 +1,308 @@
+import { useState, useEffect } from 'react'
+import api from '../../services/api'
+
+const AdminTrivias = () => {
+  const [questions, setQuestions] = useState([])
+  const [stations, setStations] = useState([])
+  const [speakers, setSpeakers] = useState([])
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editingQuestion, setEditingQuestion] = useState(null)
+  const [formData, setFormData] = useState({
+    texto: '',
+    tipo: 'simple',
+    opciones: ['', '', '', ''],
+    respuestaCorrecta: '',
+    speakerId: '',
+    estacionId: '',
+    eventoId: ''
+  })
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
+    try {
+      const [questionsRes, stationsRes, speakersRes, eventsRes] = await Promise.all([
+        api.get('/questions'),
+        api.get('/stations'),
+        api.get('/users?rol=speaker'),
+        api.get('/events')
+      ])
+      
+      setQuestions(questionsRes.data)
+      setStations(stationsRes.data)
+      setSpeakers(speakersRes.data)
+      setEvents(eventsRes.data)
+    } catch (error) {
+      console.error('Error al cargar datos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      const data = {
+        ...formData,
+        respuestaCorrecta: formData.tipo === 'multiple'
+          ? formData.opciones.filter((_, i) => formData.respuestaCorrecta.includes(i)).map(i => formData.opciones[i])
+          : formData.opciones[parseInt(formData.respuestaCorrecta)]
+      }
+
+      if (editingQuestion) {
+        await api.put(`/questions/${editingQuestion.id}`, data)
+      } else {
+        await api.post('/questions', data)
+      }
+      fetchData()
+      resetForm()
+    } catch (error) {
+      console.error('Error al guardar pregunta:', error)
+      alert('Error al guardar la pregunta')
+    }
+  }
+
+  const handleEdit = (question) => {
+    setEditingQuestion(question)
+    setFormData({
+      texto: question.texto,
+      tipo: question.tipo,
+      opciones: question.opciones || ['', '', '', ''],
+      respuestaCorrecta: question.respuestaCorrecta,
+      speakerId: question.speakerId || '',
+      estacionId: question.estacionId || '',
+      eventoId: question.eventoId || ''
+    })
+    setShowForm(true)
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('¿Estás seguro de eliminar esta pregunta?')) return
+    try {
+      await api.delete(`/questions/${id}`)
+      fetchData()
+    } catch (error) {
+      console.error('Error al eliminar pregunta:', error)
+      alert('Error al eliminar la pregunta')
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      texto: '',
+      tipo: 'simple',
+      opciones: ['', '', '', ''],
+      respuestaCorrecta: '',
+      speakerId: '',
+      estacionId: '',
+      eventoId: ''
+    })
+    setEditingQuestion(null)
+    setShowForm(false)
+  }
+
+  return (
+    <div className="min-h-screen px-4 py-12">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-white text-4xl font-bold">Gestión de Trivias</h1>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-gold-orange text-white px-6 py-2 rounded-lg hover:bg-opacity-90"
+          >
+            {showForm ? 'Cancelar' : '+ Nueva Pregunta'}
+          </button>
+        </div>
+
+        {showForm && (
+          <form onSubmit={handleSubmit} className="bg-white bg-opacity-10 rounded-lg p-6 mb-8">
+            <h2 className="text-white text-2xl font-bold mb-4">
+              {editingQuestion ? 'Editar Pregunta' : 'Nueva Pregunta'}
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white mb-2">Evento *</label>
+                <select
+                  required
+                  value={formData.eventoId}
+                  onChange={(e) => setFormData({ ...formData, eventoId: e.target.value })}
+                  className="w-full px-4 py-2 rounded-lg"
+                >
+                  <option value="">Seleccione un evento</option>
+                  {events.map(event => (
+                    <option key={event.id} value={event.id}>{event.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-white mb-2">Estación *</label>
+                <select
+                  required
+                  value={formData.estacionId}
+                  onChange={(e) => setFormData({ ...formData, estacionId: e.target.value })}
+                  className="w-full px-4 py-2 rounded-lg"
+                >
+                  <option value="">Seleccione una estación</option>
+                  {stations.map(station => (
+                    <option key={station.id} value={station.id}>{station.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-white mb-2">Texto de la Pregunta *</label>
+                <textarea
+                  required
+                  value={formData.texto}
+                  onChange={(e) => setFormData({ ...formData, texto: e.target.value })}
+                  className="w-full px-4 py-2 rounded-lg"
+                  rows="3"
+                />
+              </div>
+              <div>
+                <label className="block text-white mb-2">Tipo de Pregunta *</label>
+                <select
+                  required
+                  value={formData.tipo}
+                  onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+                  className="w-full px-4 py-2 rounded-lg"
+                >
+                  <option value="simple">Selección Simple</option>
+                  <option value="multiple">Selección Múltiple</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-white mb-2">Speaker</label>
+                <select
+                  value={formData.speakerId}
+                  onChange={(e) => setFormData({ ...formData, speakerId: e.target.value })}
+                  className="w-full px-4 py-2 rounded-lg"
+                >
+                  <option value="">Sin speaker</option>
+                  {speakers.map(speaker => (
+                    <option key={speaker.id} value={speaker.id}>{speaker.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-white mb-2">Opciones de Respuesta *</label>
+                {formData.opciones.map((opcion, index) => (
+                  <div key={index} className="mb-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={opcion}
+                      onChange={(e) => {
+                        const newOpciones = [...formData.opciones]
+                        newOpciones[index] = e.target.value
+                        setFormData({ ...formData, opciones: newOpciones })
+                      }}
+                      className="flex-1 px-4 py-2 rounded-lg"
+                      placeholder={`Opción ${String.fromCharCode(65 + index)}`}
+                    />
+                    {formData.tipo === 'simple' && (
+                      <input
+                        type="radio"
+                        name="respuestaCorrecta"
+                        checked={formData.respuestaCorrecta === index.toString()}
+                        onChange={() => setFormData({ ...formData, respuestaCorrecta: index.toString() })}
+                        className="w-6 h-6"
+                      />
+                    )}
+                  </div>
+                ))}
+                {formData.tipo === 'multiple' && (
+                  <div className="mt-2">
+                    <label className="block text-white mb-2">Respuestas Correctas (marque todas):</label>
+                    {formData.opciones.map((_, index) => (
+                      <label key={index} className="flex items-center gap-2 text-white mb-2">
+                        <input
+                          type="checkbox"
+                          checked={Array.isArray(formData.respuestaCorrecta) && formData.respuestaCorrecta.includes(index)}
+                          onChange={(e) => {
+                            const current = Array.isArray(formData.respuestaCorrecta) ? formData.respuestaCorrecta : []
+                            const newRespuesta = e.target.checked
+                              ? [...current, index]
+                              : current.filter(i => i !== index)
+                            setFormData({ ...formData, respuestaCorrecta: newRespuesta })
+                          }}
+                          className="w-4 h-4"
+                        />
+                        Opción {String.fromCharCode(65 + index)}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-4">
+                <button
+                  type="submit"
+                  className="bg-gold-orange text-white px-6 py-2 rounded-lg hover:bg-opacity-90"
+                >
+                  {editingQuestion ? 'Actualizar' : 'Crear'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-opacity-90"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        <div className="space-y-4">
+          {loading ? (
+            <div className="text-white">Cargando...</div>
+          ) : questions.length === 0 ? (
+            <div className="text-white">No hay preguntas registradas</div>
+          ) : (
+            questions.map((question) => (
+              <div key={question.id} className="bg-white bg-opacity-10 rounded-lg p-6">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h3 className="text-white text-xl font-bold mb-2">{question.texto}</h3>
+                    <div className="flex gap-2 mb-2">
+                      <span className="bg-blue-500 text-white px-2 py-1 rounded text-xs">
+                        {question.tipo}
+                      </span>
+                      {question.estacionId && (
+                        <span className="bg-purple-500 text-white px-2 py-1 rounded text-xs">
+                          Estación {question.estacionId}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-white text-sm text-opacity-60">
+                      Opciones: {question.opciones?.join(', ')}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(question)}
+                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-opacity-90"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDelete(question.id)}
+                      className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-opacity-90"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default AdminTrivias
+
