@@ -27,7 +27,7 @@ const Footer = ({ onQRClick }) => {
           </button>
         </div>
         {/* Disclaimer */}
-        <p className="text-white text-xs text-center mb-4 drop-shadow-lg">
+        <p className="text-white text-xs text-center mb-20 drop-shadow-lg">
           Material dirigido y para uso exclusivo de empleados de AZ. Información confidencial. No distribuir
         </p>
       </div>

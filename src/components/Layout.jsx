@@ -5,7 +5,15 @@ import QRCodeModal from './QRCodeModal'
 import { useState } from 'react'
 
 const Layout = ({ children }) => {
-  const [showQR, setShowQR] = useState(false)
+  const [qrUrl, setQrUrl] = useState('')
+
+  const handleQRClick = () => {
+    setQrUrl(window.location.href)
+  }
+
+  const handleCloseQR = () => {
+    setQrUrl('')
+  }
 
   return (
     <div className="min-h-screen relative">
@@ -15,14 +23,12 @@ const Layout = ({ children }) => {
         <main className="pb-20">
           {children || <Outlet />}
         </main>
-        <Footer onQRClick={() => setShowQR(true)} />
+        <Footer onQRClick={handleQRClick} />
       </div>
 
-
-      <QRCodeModal isOpen={showQR} onClose={() => setShowQR(false)} />
+      <QRCodeModal url={qrUrl} onClose={handleCloseQR} />
     </div>
   )
 }
 
 export default Layout
-

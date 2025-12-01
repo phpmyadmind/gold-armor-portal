@@ -21,14 +21,7 @@ const Header = () => {
 
   return (
     <header className="py-4 px-6 relative" style={{ zIndex: 20 }}>
-      <div className="max-w-7xl mx-auto flex items-center justify-between relative">
-        <Link to="/" className="flex items-center space-x-3">
-          <img 
-            src="/LOGO_ARMADURAS.png" 
-            alt="ARMADURAS DE ORO" 
-            className="h-12 md:h-16 object-contain"
-          />
-        </Link>
+      <div className="max-w-7xl mx-auto flex items-center justify-end relative">
 
         {user && (
           <div className="relative">
@@ -36,7 +29,6 @@ const Header = () => {
               onClick={() => setShowMenu(!showMenu)}
               className="text-white bg-black bg-opacity-50 px-4 py-2 rounded-lg hover:bg-opacity-70 flex items-center space-x-2 backdrop-blur-sm"
             >
-              <span>{user.nombre || user.email}</span>
               <span className="text-xs bg-orange-500 px-2 py-1 rounded">{user.rol}</span>
               <span>▼</span>
             </button>
@@ -86,4 +78,3 @@ const Header = () => {
 }
 
 export default Header
-
