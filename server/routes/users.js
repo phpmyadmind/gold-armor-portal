@@ -65,6 +65,39 @@ router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
   }
 })
 
+// Editar usuario
+router.put('/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const pool = getPool()
+    const { id } = req.params
+    const { identificacion, nombre, ciudad, email, password, rol } = req.body
+
+    let query = 'UPDATE users SET identificacion = ?, nombre = ?, ciudad = ?, email = ?, rol = ?'
+    const params = [identificacion, nombre, ciudad || null, email, rol, id]
+
+    // Si se proporciona password, se hashea y se actualiza
+    if (password && password.trim() !== '') {
+      const hashedPassword = await bcrypt.hash(password, 10)
+      query = 'UPDATE users SET identificacion = ?, nombre = ?, ciudad = ?, email = ?, password = ?, rol = ?'
+      params.splice(5, 0, hashedPassword) // Insertar hashedPassword antes de id
+    }
+
+    query += ' WHERE id = ?'
+    
+    await pool.execute(query, params)
+
+    const [updatedUser] = await pool.execute(
+      'SELECT id, identificacion, nombre, ciudad, email, rol, eventoId FROM users WHERE id = ?',
+      [id]
+    )
+
+    res.json(updatedUser[0])
+  } catch (error) {
+    console.error('Error al editar usuario:', error)
+    res.status(500).json({ message: 'Error al editar usuario' })
+  }
+})
+
 // Eliminar usuario
 router.delete('/:id', authenticateToken, requireRole('admin'), async (req, res) => {
   try {

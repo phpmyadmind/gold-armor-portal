@@ -11,6 +11,7 @@ import Quiz from './pages/Quiz'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminEvents from './pages/admin/AdminEvents'
 import AdminUsers from './pages/admin/AdminUsers'
+import AdminStations from './pages/admin/AdminStations'
 import AdminTrivias from './pages/admin/AdminTrivias'
 import AdminRegister from './pages/admin/AdminRegister'
 import AdminLogin from './pages/admin/AdminLogin'
@@ -119,6 +120,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <Layout><AdminUsers /></Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/stations" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Layout><AdminStations /></Layout>
                 </ProtectedRoute>
               } 
             />

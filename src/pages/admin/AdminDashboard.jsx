@@ -24,6 +24,14 @@ const AdminDashboard = () => {
           </Link>
 
           <Link
+            to="/admin/stations"
+            className="bg-white bg-opacity-10 hover:bg-opacity-20 rounded-lg p-6 text-white transition-all transform hover:scale-105"
+          >
+            <h2 className="text-2xl font-bold mb-2">🏰 Gestión de Estaciones</h2>
+            <p>Crear, editar y eliminar estaciones</p>
+          </Link>
+
+          <Link
             to="/admin/trivias"
             className="bg-white bg-opacity-10 hover:bg-opacity-20 rounded-lg p-6 text-white transition-all transform hover:scale-105"
           >

@@ -27,40 +27,37 @@ const Header = () => {
           <div className="relative">
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="text-white bg-black bg-opacity-50 px-4 py-2 rounded-lg hover:bg-opacity-70 flex items-center space-x-2 backdrop-blur-sm"
+              aria-label="Abrir menú"
+              className="text-white bg-black bg-opacity-50 p-2 rounded-lg hover:bg-opacity-70 backdrop-blur-sm"
             >
-              <span className="text-xs bg-orange-500 px-2 py-1 rounded">{user.rol}</span>
-              <span>▼</span>
+              {/* Icono de menú (hamburger) */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 6h18M3 12h18M3 18h18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
 
             {showMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl" style={{ zIndex: 30 }}>
                 <div className="py-2">
+                  {/* Mostrar rol como cabecera */}
+                  <div className="px-4 py-2 text-sm text-gray-500">{user.rol}</div>
                   {user.rol === 'admin' && (
-                    <Link
-                      to="/admin"
-                      className="block px-4 py-2 text-gray-800 hover:bg-gray-100"
-                      onClick={() => setShowMenu(false)}
+                    <button
+                      onClick={() => { window.open(`${window.location.origin}/admin`, '_blank'); setShowMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100"
                     >
                       Panel Admin
-                    </Link>
+                    </button>
                   )}
                   {(user.rol === 'speaker' || user.rol === 'staff') && (
-                    <Link
-                      to="/speaker"
-                      className="block px-4 py-2 text-gray-800 hover:bg-gray-100"
-                      onClick={() => setShowMenu(false)}
+                    <button
+                      onClick={() => { window.open(`${window.location.origin}/speaker`, '_blank'); setShowMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100"
                     >
                       Panel Speaker
-                    </Link>
+                    </button>
                   )}
-                  <Link
-                    to="/director"
-                    className="block px-4 py-2 text-gray-800 hover:bg-gray-100"
-                    onClick={() => setShowMenu(false)}
-                  >
-                    Dashboard Director
-                  </Link>
+                  {/* Dashboard Director removed from user menu by requirement */}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"

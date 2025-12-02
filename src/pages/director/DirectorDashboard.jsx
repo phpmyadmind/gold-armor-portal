@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import api from '../../services/api'
 import * as XLSX from 'xlsx'
@@ -6,11 +7,28 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 
 const DirectorDashboard = () => {
+  const navigate = useNavigate()
+  const [isAllowed, setIsAllowed] = useState(false)
   const [stats, setStats] = useState(null)
   const [questionsStats, setQuestionsStats] = useState([])
   const [speakersStats, setSpeakersStats] = useState([])
   const [topUsers, setTopUsers] = useState([])
   const [loading, setLoading] = useState(true)
+
+  // Verificar si el acceso es directo (desde URL manual) o intento de navegación programática
+  useEffect(() => {
+    // Si el referrer está vacío o es diferente al dominio, es acceso directo
+    const referrer = document.referrer
+    const currentDomain = window.location.origin
+    const isDirectAccess = !referrer || !referrer.includes(currentDomain) || referrer.includes('/director') || referrer.includes('/dashboard')
+
+    if (!isDirectAccess) {
+      // Si no es acceso directo, redirigir a Home
+      navigate('/')
+      return
+    }
+    setIsAllowed(true)
+  }, [navigate])
 
   useEffect(() => {
     fetchDashboardData()
@@ -90,6 +108,14 @@ const DirectorDashboard = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-white text-xl">Cargando dashboard...</div>
+      </div>
+    )
+  }
+
+  if (!isAllowed) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-white text-xl">Acceso denegado. Esta página solo es accesible mediante navegación directa.</div>
       </div>
     )
   }

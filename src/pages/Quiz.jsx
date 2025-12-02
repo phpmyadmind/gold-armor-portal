@@ -170,8 +170,9 @@ const Quiz = () => {
 
       await api.post('/responses/batch', { responses })
       
-      // Redirigir de vuelta a la estación después de completar
-      navigate(`/station/${stationId}`)
+      // Redirigir a la siguiente estación después de completar
+      const nextStationId = parseInt(stationId) + 1
+      navigate(`/station/${nextStationId}`)
     } catch (error) {
       console.error('Error al enviar respuestas:', error)
       alert('Error al enviar las respuestas. Por favor, intenta de nuevo.')

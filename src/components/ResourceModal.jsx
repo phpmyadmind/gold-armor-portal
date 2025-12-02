@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ResourceViewer from './ResourceViewer';
 
-const ResourceModal = ({ url, onClose }) => {
+const ResourceModal = ({ url, onClose, allowDownload = false }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   if (!url) return null;
@@ -45,20 +45,22 @@ const ResourceModal = ({ url, onClose }) => {
 
         {/* Contenido */}
         <div className="flex justify-center items-center">
-          <ResourceViewer url={url} />
+          <ResourceViewer url={url} allowDownload={allowDownload} />
         </div>
 
         {/* Pie de página */}
         <div className="mt-4 pt-4 border-t border-gray-200 flex justify-end gap-2">
-          <a 
-            href={url} 
-            download 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="bg-gold-orange text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-colors font-semibold"
-          >
-            ⬇️ Descargar
-          </a>
+          {allowDownload && (
+            <a 
+              href={url} 
+              download 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="bg-gold-orange text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-colors font-semibold"
+            >
+              ⬇️ Descargar
+            </a>
+          )}
           <button 
             onClick={onClose}
             className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors font-semibold"

@@ -6,6 +6,7 @@ const AdminUsers = () => {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [formData, setFormData] = useState({
     nombre: '',
     identificacion: '',
@@ -33,13 +34,32 @@ const AdminUsers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      await api.post('/users', formData)
+      if (editingId) {
+        // Editar usuario
+        await api.put(`/users/${editingId}`, formData)
+      } else {
+        // Crear usuario
+        await api.post('/users', formData)
+      }
       fetchUsers()
       resetForm()
     } catch (error) {
-      console.error('Error al crear usuario:', error)
-      alert('Error al crear el usuario')
+      console.error('Error al guardar usuario:', error)
+      alert('Error al guardar el usuario')
     }
+  }
+
+  const handleEdit = (user) => {
+    setFormData({
+      nombre: user.nombre,
+      identificacion: user.identificacion,
+      email: user.email,
+      password: '', // No pre-rellenar password por seguridad
+      rol: user.rol,
+      ciudad: user.ciudad || ''
+    })
+    setEditingId(user.id)
+    setShowForm(true)
   }
 
   const handleDelete = async (id) => {
@@ -62,6 +82,7 @@ const AdminUsers = () => {
       rol: 'usuario',
       ciudad: ''
     })
+    setEditingId(null)
     setShowForm(false)
   }
 
@@ -82,13 +103,15 @@ const AdminUsers = () => {
               className="bg-gold-orange text-white px-6 py-2 rounded-lg hover:bg-opacity-90"
             >
               {showForm ? 'Cancelar' : '+ Nuevo Usuario'}
-          </button>
+            </button>
           </div>
         </div>
 
         {showForm && (
           <form onSubmit={handleSubmit} className="bg-white bg-opacity-10 rounded-lg p-6 mb-8">
-            <h2 className="text-white text-2xl font-bold mb-4">Nuevo Usuario</h2>
+            <h2 className="text-white text-2xl font-bold mb-4">
+              {editingId ? 'Editar Usuario' : 'Nuevo Usuario'}
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-white mb-2">Nombre Completo *</label>
@@ -121,10 +144,12 @@ const AdminUsers = () => {
                 />
               </div>
               <div>
-                <label className="block text-white mb-2">Contraseña *</label>
+                <label className="block text-white mb-2">
+                  Contraseña {editingId ? '(dejar en blanco para no cambiar)' : '*'}
+                </label>
                 <input
                   type="password"
-                  required
+                  required={!editingId}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="w-full px-4 py-2 rounded-lg"
@@ -159,7 +184,7 @@ const AdminUsers = () => {
                 type="submit"
                 className="bg-gold-orange text-white px-6 py-2 rounded-lg hover:bg-opacity-90"
               >
-                Crear Usuario
+                {editingId ? 'Actualizar' : 'Crear'} Usuario
               </button>
               <button
                 type="button"
@@ -202,7 +227,13 @@ const AdminUsers = () => {
                         </span>
                       </td>
                       <td className="p-4 text-white">{user.ciudad || '-'}</td>
-                      <td className="p-4">
+                      <td className="p-4 flex gap-2">
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                        >
+                          Editar
+                        </button>
                         <button
                           onClick={() => handleDelete(user.id)}
                           className="bg-red-500 text-white px-3 py-1 rounded hover:bg-opacity-90"
@@ -223,4 +254,5 @@ const AdminUsers = () => {
 }
 
 export default AdminUsers
+
 

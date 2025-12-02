@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-const ResourceViewer = ({ url }) => {
+const ResourceViewer = ({ url, allowDownload = false }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+  const containerRef = useRef(null);
+  const imgRef = useRef(null);
+  const [showLens, setShowLens] = useState(false);
+  const [lensPos, setLensPos] = useState({ x: 0, y: 0 });
+  const [lensSize] = useState(160);
+  const [zoom] = useState(2.2);
 
   if (!url) return null;
 
@@ -24,6 +30,57 @@ const ResourceViewer = ({ url }) => {
 
   const extension = getFileExtension(url);
   const fileName = getFileName(url);
+
+  // PDF y PPTX usando Nutrient Web SDK
+  useEffect(() => {
+    const container = containerRef.current;
+    if (extension !== 'pdf' && extension !== 'pptx' && extension !== 'ppt') return;
+
+    let cleanup = () => {};
+
+    (async () => {
+      try {
+        const NutrientViewer = (await import("@nutrient-sdk/viewer")).default;
+        
+        // Asegurar que solo hay una instancia
+        NutrientViewer.unload(container);
+        
+        if (container && NutrientViewer) {
+          NutrientViewer.load({
+            container,
+            document: url,
+            baseUrl: `${window.location.protocol}//${window.location.host}/`,
+          });
+          
+          setIsLoading(false);
+        }
+        
+        cleanup = () => {
+          NutrientViewer.unload(container);
+        };
+      } catch (err) {
+        console.error('Error al cargar Nutrient Viewer:', err);
+        setError(true);
+        setIsLoading(false);
+      }
+    })();
+
+    return cleanup;
+  }, [url, extension]);
+
+  const handleMouseMove = (e) => {
+    const img = imgRef.current;
+    if (!img) return;
+    const rect = img.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const posX = Math.max(0, Math.min(x, rect.width));
+    const posY = Math.max(0, Math.min(y, rect.height));
+    setLensPos({ x: posX, y: posY });
+  };
+
+  const handleMouseEnter = () => setShowLens(true);
+  const handleMouseLeave = () => setShowLens(false);
 
   // Videos
   if (extension === 'mp4' || extension === 'webm') {
@@ -49,8 +106,9 @@ const ResourceViewer = ({ url }) => {
     );
   }
 
-  // Imágenes
+  // Imágenes con efecto lupa (magnifier)
   if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || extension === 'gif') {
+
     return (
       <div className="w-full flex justify-center relative">
         {isLoading && (
@@ -58,15 +116,61 @@ const ResourceViewer = ({ url }) => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-orange"></div>
           </div>
         )}
-        <img 
-          src={url} 
-          alt="Recurso" 
-          className="max-w-full max-h-[70vh] object-contain rounded-lg"
-          onLoad={() => setIsLoading(false)}
-          onError={() => setError(true)}
-        />
+
+        <div className="relative rounded-lg overflow-hidden" style={{ maxWidth: '100%', maxHeight: '70vh' }}>
+          <img
+            ref={imgRef}
+            src={url}
+            alt="Recurso"
+            className="block max-w-full max-h-[70vh] object-contain"
+            onLoad={() => setIsLoading(false)}
+            onError={() => setError(true)}
+            onMouseMove={handleMouseMove}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            style={{ display: 'block' }}
+          />
+
+          {/* Capa blanca que oculta la imagen; pointer-events none para dejar pasar eventos al img */}
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-white z-20 pointer-events-none"
+            style={{ opacity: 1 }}
+          />
+
+          {/* Lupa: muestra la porción de imagen solo donde está la lupa */}
+          {showLens && !error && (
+            <div
+              aria-hidden
+              className="pointer-events-none rounded-full border border-gray-300 shadow-lg"
+              style={{
+                position: 'absolute',
+                left: Math.max(0, lensPos.x - lensSize / 2),
+                top: Math.max(0, lensPos.y - lensSize / 2),
+                width: lensSize,
+                height: lensSize,
+                backgroundImage: `url(${url})`,
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: `${(imgRef.current?.naturalWidth || 0) * zoom}px ${(imgRef.current?.naturalHeight || 0) * zoom}px`,
+                backgroundPosition: (() => {
+                  const img = imgRef.current;
+                  if (!img) return '0px 0px';
+                  const rect = img.getBoundingClientRect();
+                  const rx = (img.naturalWidth / rect.width);
+                  const ry = (img.naturalHeight / rect.height);
+                  const bgX = -((lensPos.x * rx * zoom) - lensSize / 2);
+                  const bgY = -((lensPos.y * ry * zoom) - lensSize / 2);
+                  return `${bgX}px ${bgY}px`;
+                })(),
+                zIndex: 30,
+              }}
+            />
+          )}
+
+        </div>
+
         {error && (
-          <div className="p-4 bg-red-100 rounded-lg text-center text-red-600">
+          <div className="p-4 bg-red-100 rounded-lg text-center text-red-600 absolute z-20">
             Error al cargar la imagen
           </div>
         )}
@@ -74,98 +178,20 @@ const ResourceViewer = ({ url }) => {
     );
   }
 
-  // PDF
-  if (extension === 'pdf') {
-    return (
-      <div className="w-full">
-        <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-blue-800 font-semibold mb-2">Documento PDF</p>
-          <p className="text-sm text-blue-700">Visualizando: {fileName}</p>
-        </div>
-
-        <div className="w-full bg-gray-100 rounded-lg overflow-hidden border border-gray-300">
-          <iframe
-            src={`https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`}
-            style={{
-              width: '100%',
-              height: '70vh',
-              border: 'none',
-              borderRadius: '0.5rem',
-            }}
-            onLoad={() => setIsLoading(false)}
-            onError={() => setError(true)}
-            title="PDF Viewer"
-            className="rounded-lg"
-          />
-          {error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-red-50 rounded-lg">
-              <div className="text-center p-4">
-                <p className="text-red-600 font-semibold mb-4">Error al cargar el PDF</p>
-                <a 
-                  href={url} 
-                  download 
-                  className="inline-block bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
-                >
-                  Descargar PDF
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // PPTX / PPT
-  if (extension === 'pptx' || extension === 'ppt') {
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-    if (isLocalhost) {
-      return (
-        <div className="w-full">
-          <div className="mb-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-            <p className="text-yellow-800 font-semibold mb-2">Presentacion PowerPoint</p>
-            <p className="text-sm text-yellow-700">Visualizando: {fileName}</p>
-          </div>
-
-          <div className="w-full bg-yellow-50 rounded-lg overflow-hidden border border-yellow-300 p-8 text-center">
-            <div className="mb-6">
-              <h3 className="text-xl font-semibold text-yellow-900 mb-2">Presentacion PowerPoint</h3>
-              <p className="text-yellow-800 mb-4">
-                La visualizacion de archivos PowerPoint requiere una URL publica. En localhost usa la opcion de descarga.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 justify-center">
-              <a 
-                href={url} 
-                download 
-                className="inline-block bg-blue-500 text-white px-6 py-3 rounded-md hover:bg-blue-600 transition-colors font-semibold"
-              >
-                Descargar {extension.toUpperCase()}
-              </a>
-              <p className="text-sm text-yellow-700">
-                O copia esta URL para ver en linea:
-              </p>
-              <code className="bg-white p-2 rounded border border-yellow-300 text-xs text-left overflow-auto">
-                {url}
-              </code>
-            </div>
-          </div>
-        </div>
-      );
-    }
+  // PDF y PPTX usando Nutrient Web SDK
+  if (extension === 'pdf' || extension === 'pptx' || extension === 'ppt') {
+    const typeLabel = extension === 'pdf' ? 'Documento PDF' : 'Presentación PowerPoint';
 
     return (
       <div className="w-full">
         <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-blue-800 font-semibold mb-2">Presentacion PowerPoint</p>
+          <p className="text-blue-800 font-semibold mb-2">{typeLabel}</p>
           <p className="text-sm text-blue-700">Visualizando: {fileName}</p>
         </div>
 
-        <div className="w-full bg-gray-100 rounded-lg overflow-hidden border border-gray-300 relative" style={{ height: '70vh' }}>
+        <div className="w-full bg-gray-100 rounded-lg overflow-hidden border border-gray-300 relative">
           {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-20">
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-20 rounded-lg">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-orange"></div>
             </div>
           )}
@@ -173,30 +199,29 @@ const ResourceViewer = ({ url }) => {
           {error && (
             <div className="absolute inset-0 flex items-center justify-center bg-red-50 z-20 rounded-lg">
               <div className="text-center p-4">
-                <p className="text-red-600 font-semibold mb-4">Error al cargar la presentacion</p>
-                <a 
-                  href={url} 
-                  download 
-                  className="inline-block bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
-                >
-                  Descargar PPTX
-                </a>
+                <p className="text-red-600 font-semibold mb-4">Error al cargar {typeLabel.toLowerCase()}</p>
+                {allowDownload ? (
+                  <a 
+                    href={url} 
+                    download 
+                    className="inline-block bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
+                  >
+                    Descargar {extension.toUpperCase()}
+                  </a>
+                ) : (
+                  <p className="text-sm text-red-600">Descarga no permitida en esta estación</p>
+                )}
               </div>
             </div>
           )}
 
-          <iframe
-            src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`}
-            style={{
+          <div 
+            ref={containerRef} 
+            style={{ 
+              height: '70vh', 
               width: '100%',
-              height: '70vh',
-              border: 'none',
-              borderRadius: '0.5rem',
-            }}
-            onLoad={() => setIsLoading(false)}
-            onError={() => setError(true)}
-            title="PowerPoint Viewer"
-            className="rounded-lg"
+              borderRadius: '0.5rem'
+            }} 
           />
         </div>
       </div>
@@ -217,13 +242,17 @@ const ResourceViewer = ({ url }) => {
           <p className="text-gray-600 mb-4">Descarga el archivo para verlo en tu ordenador.</p>
         </div>
 
-        <a 
-          href={url} 
-          download 
-          className="inline-block bg-blue-500 text-white px-6 py-3 rounded-md hover:bg-blue-600 transition-colors font-semibold"
-        >
-          Descargar {extension.toUpperCase()}
-        </a>
+        {allowDownload ? (
+          <a 
+            href={url} 
+            download 
+            className="inline-block bg-blue-500 text-white px-6 py-3 rounded-md hover:bg-blue-600 transition-colors font-semibold"
+          >
+            Descargar {extension.toUpperCase()}
+          </a>
+        ) : (
+          <p className="text-sm text-gray-600">Descarga no permitida en esta estación</p>
+        )}
       </div>
     </div>
   );

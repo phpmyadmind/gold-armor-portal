@@ -41,6 +41,84 @@ const StationDetail = () => {
     fetchStation()
   }, [id])
 
+  // Aplicar fondo al `body` según la estación (reactivo a cambios de tamaño)
+  useEffect(() => {
+    const prevStyle = {
+      backgroundImage: document.body.style.backgroundImage,
+      backgroundSize: document.body.style.backgroundSize,
+      backgroundRepeat: document.body.style.backgroundRepeat,
+      backgroundPosition: document.body.style.backgroundPosition,
+    };
+
+    const backgrounds = {
+      '2': {
+        desktop: '/Fondos/Fondo_Hor_Amarillo.png',
+        mobile: '/Fondos/Fondo_ver_Amarillo.png',
+      },
+      '3': {
+        desktop: '/Fondos/Fondo_Hor_Morado.png',
+        mobile: '/Fondos/Fondo_ver_Morado.png',
+      },
+      '4': {
+        desktop: '/Fondos/Fondo_Hor_Azul-claro.png',
+        mobile: '/Fondos/Fondo_ver_Azul-claro.png',
+      },
+    };
+
+    const mq = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(max-width: 768px)') : null;
+
+    const applyBackground = () => {
+      const bg = backgrounds[id];
+      if (!bg) return;
+      const isMobile = mq ? mq.matches : false;
+      const chosen = isMobile ? bg.mobile : bg.desktop;
+      document.body.style.backgroundImage = `url("${chosen}")`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundRepeat = 'no-repeat';
+      document.body.style.backgroundPosition = 'center top';
+    };
+
+    // Aplicar inicialmente
+    applyBackground();
+
+    // Escuchar cambios de media query para actualizar el fondo reactivo al redimensionar
+    const handleChange = () => applyBackground();
+    if (mq) {
+      if (mq.addEventListener) mq.addEventListener('change', handleChange);
+      else mq.addListener(handleChange);
+    }
+
+    return () => {
+      // Remover listener
+      if (mq) {
+        if (mq.removeEventListener) mq.removeEventListener('change', handleChange);
+        else mq.removeListener(handleChange);
+      }
+      // Restaurar estilos previos
+      document.body.style.backgroundImage = prevStyle.backgroundImage || '';
+      document.body.style.backgroundSize = prevStyle.backgroundSize || '';
+      document.body.style.backgroundRepeat = prevStyle.backgroundRepeat || '';
+      document.body.style.backgroundPosition = prevStyle.backgroundPosition || '';
+    };
+  }, [id]);
+
+  // Cambiar favicon solo en /station/2
+  useEffect(() => {
+    const link = document.querySelector("link[rel~='icon']");
+    if (!link) return;
+    const prevHref = link.href;
+
+    if (id === '2') {
+      // logo azul en /Fondos
+      link.href = '/Fondos/Logo-ArmadurasAzul.png';
+    }
+
+    return () => {
+      // restaurar favicon anterior
+      try { link.href = prevHref || '/LOGO_ARMADURAS.png'; } catch (e) { /* ignore */ }
+    };
+  }, [id]);
+
   const handleStartQuiz = () => {
     navigate(`/station/${id}/quiz`)
   }
@@ -82,12 +160,44 @@ const StationDetail = () => {
 
   const resourceType = getResourceType(resourceUrl);
 
+  // Obtener logo según la estación
+  const getHeaderLogo = () => {
+    const logos = {
+      '2': '/Fondos/Logo-ArmadurasAzul.png', // Puedes cambiar según necesites
+    };
+    return logos[id] || '/LOGO_ARMADURAS.png';
+  };
+
+  // Obtener color de botones según la estación
+  const getButtonColor = () => {
+    if (id === '2') {
+      return '#183e90'; // Azul oscuro para estación 2
+    }
+    return null; // usa el color por defecto (gold-orange)
+  };
+
+  const buttonColor = getButtonColor();
+  const buttonClasses = buttonColor 
+    ? 'text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-colors'
+    : 'bg-gold-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-colors';
+  const buttonStyle = buttonColor ? { backgroundColor: buttonColor } : {};
+
+  // Archivos descargables para estación 3
+  const station3Downloads = id === '3' ? [
+    { name: 'Descargar PPTX', url: '/uploads/estacion-3.pptx', icon: '📊' },
+    { name: 'Descargar PDF', url: '/uploads/estacion-3.pdf', icon: '📄' },
+  ] : [];
+
   return (
     <div className="min-h-screen px-4 py-12">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-gold-orange text-4xl md:text-5xl font-bold text-center mb-12">
-          {station?.headerText || 'ARMADURAS DE ORO'}
-        </h1>
+        <div className="flex justify-center mb-12">
+          <img 
+            src={getHeaderLogo()} 
+            alt="Logo"
+            className="h-24 md:h-32 object-contain drop-shadow-lg"
+          />
+        </div>
 
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-shrink-0 flex justify-center md:justify-start">
@@ -103,7 +213,8 @@ const StationDetail = () => {
               {resourceUrl && (
                 <button 
                   onClick={handleOpenModal}
-                  className="bg-gold-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-colors flex items-center gap-2"
+                  className={buttonClasses}
+                  style={buttonStyle}
                 >
                   <span>{resourceType.icon}</span>
                   <span>{resourceType.label}</span>
@@ -120,7 +231,8 @@ const StationDetail = () => {
               ) : (
                 <button
                   onClick={handleStartQuiz}
-                  className="bg-gold-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-colors"
+                  className={buttonClasses}
+                  style={buttonStyle}
                 >
                   Realizar
                 </button>
@@ -131,7 +243,7 @@ const StationDetail = () => {
       </div>
 
       {isModalOpen && (
-        <ResourceModal url={resourceUrl} onClose={handleCloseModal} />
+        <ResourceModal url={resourceUrl} onClose={handleCloseModal} allowDownload={id === '3'} />
       )}
     </div>
   )

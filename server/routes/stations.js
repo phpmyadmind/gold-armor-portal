@@ -69,5 +69,71 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 })
 
+// Crear estación
+router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const pool = getPool()
+    const { nombre, orden, problema, videoUrl, descripcion, headerText } = req.body
+
+    const [result] = await pool.execute(
+      'INSERT INTO stations (nombre, orden, problema, videoUrl, descripcion, headerText) VALUES (?, ?, ?, ?, ?, ?)',
+      [nombre, orden || 1, problema || null, videoUrl || null, descripcion || null, headerText || 'ARMADURAS DE ORO']
+    )
+
+    const [newStation] = await pool.execute(
+      'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations WHERE id = ?',
+      [result.insertId]
+    )
+
+    const resolvedStation = resolveUrls(newStation[0], ['videoUrl'])
+    res.json(resolvedStation)
+  } catch (error) {
+    console.error('Error al crear estación:', error)
+    res.status(500).json({ message: 'Error al crear estación' })
+  }
+})
+
+// Editar estación
+router.put('/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const pool = getPool()
+    const { id } = req.params
+    const { nombre, orden, problema, videoUrl, descripcion, headerText } = req.body
+
+    await pool.execute(
+      'UPDATE stations SET nombre = ?, orden = ?, problema = ?, videoUrl = ?, descripcion = ?, headerText = ? WHERE id = ?',
+      [nombre, orden || 1, problema || null, videoUrl || null, descripcion || null, headerText || 'ARMADURAS DE ORO', id]
+    )
+
+    const [updatedStation] = await pool.execute(
+      'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations WHERE id = ?',
+      [id]
+    )
+
+    if (updatedStation.length === 0) {
+      return res.status(404).json({ message: 'Estación no encontrada' })
+    }
+
+    const resolvedStation = resolveUrls(updatedStation[0], ['videoUrl'])
+    res.json(resolvedStation)
+  } catch (error) {
+    console.error('Error al editar estación:', error)
+    res.status(500).json({ message: 'Error al editar estación' })
+  }
+})
+
+// Eliminar estación
+router.delete('/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const pool = getPool()
+    const { id } = req.params
+    await pool.execute('DELETE FROM stations WHERE id = ?', [id])
+    res.json({ message: 'Estación eliminada' })
+  } catch (error) {
+    console.error('Error al eliminar estación:', error)
+    res.status(500).json({ message: 'Error al eliminar estación' })
+  }
+})
+
 export default router
 
