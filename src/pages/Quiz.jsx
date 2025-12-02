@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import StationImage from '../components/StationImage'
 import QRCodeModal from '../components/QRCodeModal'
+import { normalizeQuestions } from '../utils/questionHelpers'
 
 const Quiz = () => {
   const { id: stationId } = useParams()
@@ -33,11 +34,61 @@ const Quiz = () => {
           })
         }
 
-        // Cargar preguntas de la estación
+        // Cargar preguntas de la estación (accesible para usuarios con rol "usuario")
         const response = await api.get(`/questions/station/${stationId}`)
         const questionsData = response.data
         
-        setQuestions(questionsData)
+        if (!questionsData || questionsData.length === 0) {
+          console.warn(`No se encontraron preguntas para la estación ${stationId}`)
+          setQuestions([])
+          return
+        }
+        
+        // Normalizar las preguntas para asegurar que las opciones estén en formato correcto
+        const normalizedQuestions = normalizeQuestions(questionsData)
+        
+        // Asegurar que las preguntas tengan opciones válidas
+        const questionsWithValidOptions = normalizedQuestions.map((q, idx) => {
+          // Si después de normalizar no hay opciones, intentar obtenerlas del dato original
+          if (!q.opciones || !Array.isArray(q.opciones) || q.opciones.length === 0) {
+            const original = questionsData[idx]
+            if (original && original.opciones) {
+              // Intentar parsear directamente
+              let opciones = original.opciones
+              if (typeof opciones === 'string') {
+                try {
+                  opciones = JSON.parse(opciones)
+                } catch (e) {
+                  console.error('Error parseando opciones:', e)
+                }
+              }
+              if (Array.isArray(opciones) && opciones.length > 0) {
+                q.opciones = opciones
+              }
+            }
+          }
+          
+          // Verificar que las opciones sean válidas (filtrar null/undefined pero mantener strings)
+          if (Array.isArray(q.opciones)) {
+            q.opciones = q.opciones.filter(op => op != null && String(op).trim().length > 0)
+          }
+          
+          return q
+        }).filter(q => {
+          // Solo incluir preguntas con opciones válidas
+          const tieneOpciones = q && Array.isArray(q.opciones) && q.opciones.length > 0
+          if (!tieneOpciones) {
+            console.warn(`⚠️ Filtrando pregunta ${q?.id} sin opciones válidas en frontend`)
+          }
+          return tieneOpciones
+        })
+        
+        console.log(`✅ Estación ${stationId}: ${questionsWithValidOptions.length} preguntas con opciones válidas cargadas`)
+        questionsWithValidOptions.forEach((q, idx) => {
+          console.log(`  ✓ Pregunta ${idx + 1} (ID: ${q.id}): "${q.texto?.substring(0, 50)}..." - ${q.opciones.length} opciones`)
+        })
+        
+        setQuestions(questionsWithValidOptions)
         
         // Inicializar tiempos de inicio para cada pregunta
         const times = {}
@@ -146,7 +197,29 @@ const Quiz = () => {
   }
 
   const currentQuestion = questions[currentQuestionIndex]
-  const selectedAnswer = selectedAnswers[currentQuestion.id]
+  const selectedAnswer = selectedAnswers[currentQuestion?.id]
+  
+  // Verificar que la pregunta actual tenga opciones válidas
+  if (!currentQuestion) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-white text-xl">
+          Error: No se pudo cargar la pregunta actual.
+        </div>
+      </div>
+    )
+  }
+  
+  // Verificar opciones
+  const tieneOpciones = Array.isArray(currentQuestion.opciones) && currentQuestion.opciones.length > 0
+  if (!tieneOpciones) {
+    console.error('Pregunta sin opciones:', {
+      preguntaId: currentQuestion.id,
+      texto: currentQuestion.texto,
+      opciones: currentQuestion.opciones,
+      tipo: typeof currentQuestion.opciones
+    })
+  }
 
   return (
     <div className="min-h-screen px-4 py-12">
@@ -198,39 +271,55 @@ const Quiz = () => {
           </p>
 
           {/* Opciones de respuesta */}
-          <div className="space-y-3">
-            {currentQuestion.opciones && currentQuestion.opciones.map((opcion, index) => {
-              const letter = String.fromCharCode(65 + index) // A, B, C, D
-              const isSelected = currentQuestion.tipo === 'multiple'
-                ? (selectedAnswer || []).includes(opcion)
-                : selectedAnswer === opcion
+          <div className="space-y-3 mt-4">
+            {tieneOpciones ? (
+              currentQuestion.opciones.map((opcion, index) => {
+                const letter = String.fromCharCode(65 + index) // A, B, C, D
+                const opcionTexto = String(opcion || '').trim()
+                const isSelected = currentQuestion.tipo === 'multiple'
+                  ? (selectedAnswer || []).includes(opcion)
+                  : selectedAnswer === opcion
 
-              return (
-                <button
-                  key={index}
-                  onClick={() => handleAnswerChange(currentQuestion.id, opcion)}
-                  className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                    isSelected
-                      ? 'bg-sky-blue bg-opacity-30 border-sky-blue'
-                      : 'bg-white bg-opacity-10 border-white border-opacity-30 hover:border-sky-blue'
-                  }`}
-                >
-                  <div className="flex items-start space-x-4">
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                      isSelected ? 'bg-sky-blue text-white' : 'bg-castle-blue-light text-white'
-                    }`}>
-                      {letter}
+                if (!opcionTexto) {
+                  return null // No renderizar opciones vacías
+                }
+
+                return (
+                  <button
+                    key={`opcion-${index}-${currentQuestion.id}`}
+                    onClick={() => handleAnswerChange(currentQuestion.id, opcion)}
+                    className={`w-full text-left p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-sky-blue bg-opacity-30 border-sky-blue'
+                        : 'bg-white bg-opacity-10 border-white border-opacity-30 hover:border-sky-blue hover:bg-opacity-20'
+                    }`}
+                  >
+                    <div className="flex items-start space-x-4">
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                        isSelected ? 'bg-sky-blue text-white' : 'bg-castle-blue-light text-white'
+                      }`}>
+                        {letter}
+                      </div>
+                      <span className="text-white flex-1 text-base">
+                        {opcionTexto}
+                      </span>
+                      {isSelected && (
+                        <span className="text-sky-blue text-xl flex-shrink-0">✓</span>
+                      )}
                     </div>
-                    <span className="text-white flex-1">
-                      {opcion || `Lorem ipsum dolor sit amet, consectetur adipiscing elit.`}
-                    </span>
-                    {isSelected && (
-                      <span className="text-sky-blue text-xl">✓</span>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
+                  </button>
+                )
+              }).filter(Boolean) // Filtrar nulls
+            ) : (
+              <div className="text-white text-center py-4 bg-red-500 bg-opacity-20 rounded-lg border border-red-500">
+                <p className="font-semibold mb-2">⚠️ No hay opciones disponibles para esta pregunta</p>
+                <p className="text-sm opacity-80">
+                  Estación: {stationId} | Pregunta ID: {currentQuestion?.id} | 
+                  Tipo de opciones: {typeof currentQuestion?.opciones} | 
+                  Es array: {Array.isArray(currentQuestion?.opciones) ? 'Sí' : 'No'}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

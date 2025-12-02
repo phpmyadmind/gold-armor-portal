@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../../services/api'
+import { normalizeQuestions } from '../../utils/questionHelpers'
 
 const SpeakerDashboard = () => {
   const [questions, setQuestions] = useState([])
@@ -13,7 +14,8 @@ const SpeakerDashboard = () => {
     try {
       const userData = JSON.parse(localStorage.getItem('userData'))
       const response = await api.get(`/questions/speaker/${userData.id}`)
-      setQuestions(response.data)
+      // Normalizar las preguntas para asegurar que las opciones estén en formato correcto
+      setQuestions(normalizeQuestions(response.data))
     } catch (error) {
       console.error('Error al cargar preguntas:', error)
     } finally {

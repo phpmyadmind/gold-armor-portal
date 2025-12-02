@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import api from '../../services/api'
+import { normalizeQuestions, normalizeOpciones } from '../../utils/questionHelpers'
 
 const AdminTrivias = () => {
   const [questions, setQuestions] = useState([])
@@ -32,7 +33,8 @@ const AdminTrivias = () => {
         api.get('/events')
       ])
       
-      setQuestions(questionsRes.data)
+      // Normalizar las preguntas para asegurar que las opciones estén en formato correcto
+      setQuestions(normalizeQuestions(questionsRes.data))
       setStations(stationsRes.data)
       setSpeakers(speakersRes.data)
       setEvents(eventsRes.data)
@@ -72,7 +74,12 @@ const AdminTrivias = () => {
 
   const handleEdit = (question) => {
     // Al editar, convertir la respuesta (texto o array de textos) a índices
-    let opciones = question.opciones || ['', '', '', '']
+    // Normalizar las opciones primero
+    let opciones = normalizeOpciones(question.opciones)
+    // Asegurar que siempre haya al menos 4 opciones para el formulario
+    while (opciones.length < 4) {
+      opciones.push('')
+    }
     let respuestaForForm = ''
     if (question.tipo === 'multiple') {
       // esperar que question.respuestaCorrecta sea array de textos
