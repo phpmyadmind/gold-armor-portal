@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "pdfjs-dist": "^4.0.379",
     "axios": "^1.6.2",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.2",

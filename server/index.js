@@ -8,7 +8,8 @@ import stationsRoutes from './routes/stations.js'
 import questionsRoutes from './routes/questions.js'
 import responsesRoutes from './routes/responses.js'
 import dashboardRoutes from './routes/dashboard.js'
-import settingsRoutes from './routes/settings.js' // Importar nueva ruta
+import settingsRoutes from './routes/settings.js'
+import runMigrations from './migrations.js'
 import { ensureDatabaseExists, createPool, getPool } from './config/database.js'
 
 dotenv.config()
@@ -23,6 +24,9 @@ const corsOptions = {
 };
 app.use(cors(corsOptions))
 app.use(express.json())
+
+// Servir archivos estáticos desde la carpeta uploads
+app.use('/uploads', express.static('uploads'))
 
 // Rutas
 app.use('/api/auth', authRoutes)
@@ -51,6 +55,10 @@ async function startServer() {
     
     // 4. Crear tablas si no existen
     await initializeDatabase(pool)
+    
+    // 5. Ejecutar migraciones
+    console.log('🔄 Ejecutando migraciones...')
+    await runMigrations()
     
     console.log('✅ Servidor listo para recibir peticiones')
   } catch (err) {

@@ -4,70 +4,49 @@ import { authenticateToken, requireRole } from '../middleware/auth.js'
 
 const router = express.Router()
 
-// Función auxiliar para parsear opciones de forma robusta
-function parseOpciones(opcionesRaw) {
-  // Si ya es un array, retornarlo directamente
-  if (Array.isArray(opcionesRaw)) {
-    return opcionesRaw
-  }
-  
-  // Si es null o undefined, retornar array vacío
-  if (!opcionesRaw) {
-    return []
-  }
-  
-  // Si es un string, intentar parsearlo como JSON
-  if (typeof opcionesRaw === 'string') {
-    try {
-      const parsed = JSON.parse(opcionesRaw)
-      // Si el parseo resultó en un array, retornarlo
-      if (Array.isArray(parsed)) {
-        return parsed
-      }
-      // Si el parseo resultó en un objeto u otro tipo, intentar otros métodos
-    } catch (err) {
-      // Si falla el parseo JSON, intentar otros métodos
-    }
-    
-    // Si el string contiene comas, dividirlo
-    if (opcionesRaw.includes(',')) {
-      return opcionesRaw.split(',').map(s => s.trim()).filter(s => s.length > 0)
-    }
-    
-    // Si es un string simple no vacío, retornarlo como array con un elemento
-    const trimmed = opcionesRaw.trim()
-    if (trimmed.length > 0) {
-      return [trimmed]
+// Función auxiliar para convertir columnas individuales a array de opciones
+function columnasAOpciones(row) {
+  const opciones = []
+  for (let i = 1; i <= 6; i++) {
+    const opcion = row[`opcion${i}`]
+    if (opcion && opcion.trim()) {
+      opciones.push(opcion)
     }
   }
-  
-  // Si es un objeto (no array), intentar convertirlo
-  if (typeof opcionesRaw === 'object') {
-    try {
-      return Object.values(opcionesRaw)
-    } catch (err) {
-      // Si falla, retornar array vacío
-    }
-  }
-  
-  return []
+  return opciones
 }
 
-// Función auxiliar para parsear respuesta correcta de forma robusta
-function parseRespuestaCorrecta(respuestaRaw) {
-  try {
-    return JSON.parse(respuestaRaw || 'null')
-  } catch (err) {
-    // Si no es JSON, mantener como string
-    return respuestaRaw || null
+// Función auxiliar para convertir array de opciones a columnas individuales
+function opcionesAColumnas(opciones) {
+  const columnas = {
+    opcion1: null,
+    opcion2: null,
+    opcion3: null,
+    opcion4: null,
+    opcion5: null,
+    opcion6: null
   }
+  
+  if (Array.isArray(opciones)) {
+    opciones.forEach((opcion, index) => {
+      if (index < 6 && opcion && opcion.trim()) {
+        columnas[`opcion${index + 1}`] = opcion
+      }
+    })
+  }
+  
+  return columnas
 }
 
 // Función auxiliar para convertir respuestas a índices (para la UI admin)
 function respuestaAIndices(respuestaCorrecta, opciones, tipo) {
+  if (!respuestaCorrecta) {
+    return tipo === 'multiple' ? [] : ''
+  }
+
   if (tipo === 'multiple') {
     if (!Array.isArray(respuestaCorrecta)) {
-      return []
+      respuestaCorrecta = [respuestaCorrecta]
     }
     return respuestaCorrecta
       .map(val => {
@@ -77,46 +56,56 @@ function respuestaAIndices(respuestaCorrecta, opciones, tipo) {
       .filter(i => i !== null)
   } else {
     // simple
-    if (Array.isArray(respuestaCorrecta)) {
-      respuestaCorrecta = respuestaCorrecta[0] || ''
-    }
-    const idx = opciones.indexOf(respuestaCorrecta)
+    const val = Array.isArray(respuestaCorrecta) ? respuestaCorrecta[0] : respuestaCorrecta
+    const idx = opciones.indexOf(val)
     return idx >= 0 ? idx.toString() : ''
   }
 }
 
 // Función para formatear pregunta con índices para admin UI
 function formatQuestionForAdmin(q) {
-  const opciones = parseOpciones(q.opciones)
-  const respuestaRaw = parseRespuestaCorrecta(q.respuestaCorrecta)
-  const respuestaIndices = respuestaAIndices(respuestaRaw, opciones, q.tipo)
+  const opciones = columnasAOpciones(q)
+  const respuestaCorrecta = q.respuestaCorrecta_valor
+
+  // Convertir respuesta a array si es multiple
+  let respuestaParaUI = respuestaCorrecta
+  if (q.tipo === 'multiple' && respuestaCorrecta && typeof respuestaCorrecta === 'string') {
+    try {
+      respuestaParaUI = JSON.parse(respuestaCorrecta)
+    } catch (e) {
+      respuestaParaUI = [respuestaCorrecta]
+    }
+  }
+
+  const respuestaIndices = respuestaAIndices(respuestaParaUI, opciones, q.tipo)
 
   return {
     ...q,
     opciones,
-    respuestaCorrecta: respuestaRaw,
+    respuestaCorrecta: respuestaParaUI,
     respuestaIndices
   }
 }
 
 // Función para formatear pregunta para Quiz (usa textos, no índices)
 function formatQuestionForQuiz(q) {
-  const opciones = parseOpciones(q.opciones)
-  const respuestaRaw = parseRespuestaCorrecta(q.respuestaCorrecta)
+  const opciones = columnasAOpciones(q)
+  const respuestaCorrecta = q.respuestaCorrecta_valor
 
-  // Validar que las opciones sean un array válido
-  if (!Array.isArray(opciones) || opciones.length === 0) {
-    console.error(`Pregunta ${q.id}: Opciones inválidas después del parseo`, {
-      opcionesRaw: q.opciones,
-      opcionesParsed: opciones,
-      tipo: typeof q.opciones
-    })
+  // Convertir respuesta a array si es multiple
+  let respuestaParaUI = respuestaCorrecta
+  if (q.tipo === 'multiple' && respuestaCorrecta && typeof respuestaCorrecta === 'string') {
+    try {
+      respuestaParaUI = JSON.parse(respuestaCorrecta)
+    } catch (e) {
+      respuestaParaUI = [respuestaCorrecta]
+    }
   }
 
   return {
     ...q,
-    opciones: Array.isArray(opciones) ? opciones : [],
-    respuestaCorrecta: respuestaRaw
+    opciones,
+    respuestaCorrecta: respuestaParaUI
   }
 }
 
@@ -223,14 +212,6 @@ router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
     const pool = getPool()
     let { texto, tipo, opciones, respuestaCorrecta, speakerId, estacionId, eventoId } = req.body
     
-    console.log('DEBUG POST - Datos recibidos:', {
-      texto,
-      tipo,
-      opciones,
-      respuestaCorrecta,
-      respuestaCorrecta_type: Array.isArray(respuestaCorrecta) ? 'array' : typeof respuestaCorrecta
-    })
-    
     // Validar datos requeridos
     if (!texto || !estacionId) {
       return res.status(400).json({ message: 'Texto y estacionId son requeridos' })
@@ -247,6 +228,8 @@ router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
             return i >= 0 && i < opciones.length ? opciones[i] : null
           })
           .filter(v => v !== null)
+        // Guardar como JSON para multiple
+        respuestaParaBD = JSON.stringify(respuestaParaBD)
       }
     } else {
       // respuestaCorrecta es índice "1"
@@ -255,16 +238,23 @@ router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
         respuestaParaBD = opciones[idx]
       }
     }
-    
-    console.log('DEBUG POST - Respuesta para BD:', respuestaParaBD)
+
+    // Convertir opciones a columnas individuales
+    const columnasOpciones = opcionesAColumnas(opciones)
 
     const [result] = await pool.execute(
-      'INSERT INTO questions (texto, tipo, opciones, respuestaCorrecta, speakerId, estacionId, eventoId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      `INSERT INTO questions (texto, tipo, opcion1, opcion2, opcion3, opcion4, opcion5, opcion6, respuestaCorrecta_valor, speakerId, estacionId, eventoId) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         texto,
         tipo || 'simple',
-        JSON.stringify(opciones || []),
-        JSON.stringify(respuestaParaBD),
+        columnasOpciones.opcion1,
+        columnasOpciones.opcion2,
+        columnasOpciones.opcion3,
+        columnasOpciones.opcion4,
+        columnasOpciones.opcion5,
+        columnasOpciones.opcion6,
+        respuestaParaBD,
         speakerId || null,
         estacionId,
         eventoId || null
@@ -304,6 +294,8 @@ router.put('/:id', authenticateToken, requireRole('admin'), async (req, res) => 
             return i >= 0 && i < opciones.length ? opciones[i] : null
           })
           .filter(v => v !== null)
+        // Guardar como JSON para multiple
+        respuestaParaBD = JSON.stringify(respuestaParaBD)
       }
     } else {
       // respuestaCorrecta es índice "1"
@@ -313,13 +305,21 @@ router.put('/:id', authenticateToken, requireRole('admin'), async (req, res) => 
       }
     }
 
+    // Convertir opciones a columnas individuales
+    const columnasOpciones = opcionesAColumnas(opciones)
+
     await pool.execute(
-      'UPDATE questions SET texto = ?, tipo = ?, opciones = ?, respuestaCorrecta = ?, speakerId = ?, estacionId = ?, eventoId = ? WHERE id = ?',
+      `UPDATE questions SET texto = ?, tipo = ?, opcion1 = ?, opcion2 = ?, opcion3 = ?, opcion4 = ?, opcion5 = ?, opcion6 = ?, respuestaCorrecta_valor = ?, speakerId = ?, estacionId = ?, eventoId = ? WHERE id = ?`,
       [
         texto,
         tipo,
-        JSON.stringify(opciones),
-        JSON.stringify(respuestaParaBD),
+        columnasOpciones.opcion1,
+        columnasOpciones.opcion2,
+        columnasOpciones.opcion3,
+        columnasOpciones.opcion4,
+        columnasOpciones.opcion5,
+        columnasOpciones.opcion6,
+        respuestaParaBD,
         speakerId || null,
         estacionId,
         eventoId,

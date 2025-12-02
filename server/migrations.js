@@ -51,6 +51,86 @@ const runMigrations = async () => {
         console.log('Column "videoUrl" already exists in "stations" table.');
     }
 
+    // Migration 4: Update questions table structure
+    const [optionColumns] = await pool.execute(`
+      SHOW COLUMNS FROM questions LIKE 'opcion%'
+    `);
+
+    if (optionColumns.length === 0) {
+      // Agregar columnas para 6 opciones individuales y respuesta correcta
+      await pool.execute(`
+        ALTER TABLE questions
+        ADD COLUMN opcion1 VARCHAR(500),
+        ADD COLUMN opcion2 VARCHAR(500),
+        ADD COLUMN opcion3 VARCHAR(500),
+        ADD COLUMN opcion4 VARCHAR(500),
+        ADD COLUMN opcion5 VARCHAR(500),
+        ADD COLUMN opcion6 VARCHAR(500),
+        ADD COLUMN respuestaCorrecta_valor VARCHAR(500)
+      `);
+      console.log('Columns for options added to "questions" table.');
+
+      // Migrar datos de opciones JSON a columnas individuales
+      const [questions] = await pool.execute('SELECT id, opciones, respuestaCorrecta FROM questions');
+      
+      for (const question of questions) {
+        try {
+          let opciones = [];
+          let respuestaCorrecta = null;
+
+          // Parsear opciones
+          if (question.opciones) {
+            try {
+              opciones = JSON.parse(question.opciones);
+            } catch (e) {
+              if (typeof question.opciones === 'string') {
+                opciones = question.opciones.split(',').map(s => s.trim());
+              }
+            }
+          }
+
+          // Parsear respuesta correcta
+          if (question.respuestaCorrecta) {
+            try {
+              respuestaCorrecta = JSON.parse(question.respuestaCorrecta);
+            } catch (e) {
+              respuestaCorrecta = question.respuestaCorrecta;
+            }
+          }
+
+          // Guardar respuesta como string (JSON si es array para multiple)
+          let respuestaParaBD = null;
+          if (Array.isArray(respuestaCorrecta)) {
+            respuestaParaBD = JSON.stringify(respuestaCorrecta);
+          } else {
+            respuestaParaBD = respuestaCorrecta;
+          }
+
+          // Actualizar columnas individuales
+          const updates = [];
+          const params = [];
+          for (let i = 0; i < 6; i++) {
+            updates.push(`opcion${i + 1} = ?`);
+            params.push(opciones[i] || null);
+          }
+          updates.push('respuestaCorrecta_valor = ?');
+          params.push(respuestaParaBD);
+          params.push(question.id);
+
+          await pool.execute(
+            `UPDATE questions SET ${updates.join(', ')} WHERE id = ?`,
+            params
+          );
+        } catch (error) {
+          console.error(`Error migrating question ${question.id}:`, error);
+        }
+      }
+
+      console.log('Data migrated from JSON columns to individual option columns.');
+    } else {
+      console.log('Options columns already exist in "questions" table.');
+    }
+
     console.log('Migrations completed successfully.');
 
   } catch (error) {

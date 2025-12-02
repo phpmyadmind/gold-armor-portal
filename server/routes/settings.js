@@ -1,5 +1,6 @@
 import express from 'express'
 import getPool from '../config/database.js'
+import { resolveUrls } from '../utils/urlHelper.js'
 
 const router = express.Router()
 
@@ -18,7 +19,9 @@ router.get('/:eventId', async (req, res) => {
       return res.status(404).json({ message: 'Configuración no encontrada' })
     }
 
-    res.json(settings[0])
+    // Resolver URLs relativas a completas
+    const resolvedSettings = resolveUrls(settings[0], ['resourcesLink'])
+    res.json(resolvedSettings)
   } catch (error) {
     console.error('Error al obtener la configuración:', error)
     res.status(500).json({ message: 'Error del servidor' })

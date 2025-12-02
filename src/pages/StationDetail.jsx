@@ -66,6 +66,22 @@ const StationDetail = () => {
   // Determinar qué URL usar: la específica de la estación o la general del evento.
   const resourceUrl = station?.videoUrl || settings?.resourcesLink;
 
+  // Función para detectar el tipo de recurso
+  const getResourceType = (url) => {
+    try {
+      const ext = new URL(url).pathname.split('.').pop().toLowerCase();
+      if (ext === 'mp4' || ext === 'webm') return { icon: '🎬', label: 'Ver video' };
+      if (ext === 'pptx' || ext === 'ppt') return { icon: '📊', label: 'Ver presentación' };
+      if (ext === 'pdf') return { icon: '📄', label: 'Ver PDF' };
+      if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return { icon: '🖼️', label: 'Ver imagen' };
+      return { icon: '📁', label: 'Ver recurso' };
+    } catch (e) {
+      return { icon: '📁', label: 'Ver recurso' };
+    }
+  };
+
+  const resourceType = getResourceType(resourceUrl);
+
   return (
     <div className="min-h-screen px-4 py-12">
       <div className="max-w-6xl mx-auto">
@@ -80,16 +96,17 @@ const StationDetail = () => {
 
           <div className="flex-1 space-y-8">
             <div>
-              <h2 className="text-white text-2xl font-bold mb-4">EL PROBLEMA</h2>
+              <h2 className="text-white text-2xl font-bold mb-4">{station?.problema}</h2>
               <p className="text-white text-lg mb-6">
-                {station?.problema || 'Para vencer al dragón, primero debemos conocerlo'}
+                {station?.descripcion || 'Para vencer al dragón, primero debemos conocerlo'}
               </p>
               {resourceUrl && (
                 <button 
                   onClick={handleOpenModal}
-                  className="bg-gold-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-colors"
+                  className="bg-gold-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-colors flex items-center gap-2"
                 >
-                  {settings?.buttonText || 'Ver recursos'}
+                  <span>{resourceType.icon}</span>
+                  <span>{resourceType.label}</span>
                 </button>
               )}
             </div>

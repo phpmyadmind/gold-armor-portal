@@ -1,6 +1,7 @@
 import express from 'express'
 import getPool from '../config/database.js'
 import { authenticateToken, requireRole } from '../middleware/auth.js'
+import { resolveUrls, resolveUrlsInArray } from '../utils/urlHelper.js'
 
 const router = express.Router()
 
@@ -31,10 +32,14 @@ router.get('/', authenticateToken, requireRole('admin'), async (req, res) => {
       const [newStations] = await pool.execute(
         'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations ORDER BY orden ASC'
       )
-      return res.json(newStations)
+      // Resolver URLs relativas a completas
+      const resolvedStations = resolveUrlsInArray(newStations, ['videoUrl'])
+      return res.json(resolvedStations)
     }
     
-    res.json(stations)
+    // Resolver URLs relativas a completas
+    const resolvedStations = resolveUrlsInArray(stations, ['videoUrl'])
+    res.json(resolvedStations)
   } catch (error) {
     console.error('Error al obtener estaciones:', error)
     res.status(500).json({ message: 'Error al obtener estaciones' })
@@ -55,7 +60,9 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Estación no encontrada' })
     }
     
-    res.json(stations[0])
+    // Resolver URLs relativas a completas
+    const resolvedStation = resolveUrls(stations[0], ['videoUrl'])
+    res.json(resolvedStation)
   } catch (error) {
     console.error('Error al obtener estación:', error)
     res.status(500).json({ message: 'Error al obtener estación' })
