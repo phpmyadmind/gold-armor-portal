@@ -1,9 +1,9 @@
-import { useState, useEffect, useContext } from 'react'
-import { AuthContext } from '../contexts/AuthContext'
+import { useState, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 
 export const useEventSettings = () => {
-  const { user } = useContext(AuthContext)
+  const { user } = useAuth()
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
 
