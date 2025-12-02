@@ -24,6 +24,7 @@ const DirectorDashboard = () => {
     // Esperar a que la autenticación termine de cargar
     if (authLoading) return
     
+    
     if (user) {
       if (user.rol === 'director' || user.rol === 'staff') {
         setIsAllowed(true)
