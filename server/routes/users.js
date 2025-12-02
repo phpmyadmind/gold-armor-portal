@@ -21,8 +21,16 @@ router.get('/', authenticateToken, requireRole('admin'), async (req, res) => {
     const [users] = await pool.execute(query, params)
     res.json(users)
   } catch (error) {
-    console.error('Error al obtener usuarios:', error)
-    res.status(500).json({ message: 'Error al obtener usuarios' })
+    console.error('Error al obtener usuarios - Detalles:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState
+    })
+    res.status(500).json({ 
+      message: 'Error al obtener usuarios',
+      details: error.message 
+    })
   }
 })
 

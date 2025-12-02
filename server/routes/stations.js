@@ -1,11 +1,11 @@
 import express from 'express'
 import getPool from '../config/database.js'
-import { authenticateToken } from '../middleware/auth.js'
+import { authenticateToken, requireRole } from '../middleware/auth.js'
 
 const router = express.Router()
 
 // Obtener todas las estaciones
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, requireRole('admin'), async (req, res) => {
   try {
     const pool = getPool()
     const [stations] = await pool.execute(

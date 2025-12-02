@@ -33,7 +33,10 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await api.post('/auth/login', { email, password })
+      // Si hay contraseña, es login de admin
+      const endpoint = password ? '/auth/admin/login' : '/auth/login'
+      
+      const response = await api.post(endpoint, { email, password })
       const { token, user } = response.data
       
       localStorage.setItem('token', token)

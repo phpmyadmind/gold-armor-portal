@@ -5,7 +5,7 @@ import { authenticateToken, requireRole } from '../middleware/auth.js'
 const router = express.Router()
 
 // Obtener todos los eventos
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, requireRole('admin'), async (req, res) => {
   try {
     const pool = getPool()
     const [events] = await pool.execute(
@@ -13,8 +13,16 @@ router.get('/', authenticateToken, async (req, res) => {
     )
     res.json(events)
   } catch (error) {
-    console.error('Error al obtener eventos:', error)
-    res.status(500).json({ message: 'Error al obtener eventos' })
+    console.error('Error al obtener eventos - Detalles:', {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState
+    })
+    res.status(500).json({ 
+      message: 'Error al obtener eventos',
+      details: error.message 
+    })
   }
 })
 

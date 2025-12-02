@@ -5,6 +5,43 @@ import getPool from '../config/database.js'
 
 const router = express.Router()
 
+// Verificar si usuario existe por email
+router.post('/verify-user', async (req, res) => {
+  try {
+    const { email } = req.body
+    const pool = getPool()
+
+    if (!email) {
+      return res.status(400).json({ message: 'El correo es requerido' })
+    }
+
+    const [users] = await pool.execute(
+      'SELECT id, identificacion, nombre, ciudad, email, rol, eventoId FROM users WHERE email = ?',
+      [email]
+    )
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado', exists: false })
+    }
+
+    const user = users[0]
+
+    // Si es admin, no permitir login desde el registro público
+    if (user.rol === 'admin') {
+      return res.status(403).json({ 
+        message: 'Los administradores deben usar /admin/login para iniciar sesión',
+        exists: true
+      })
+    }
+
+    // Usuario existe y es válido
+    return res.json({ exists: true, user })
+  } catch (error) {
+    console.error('Error en verificación de usuario:', error)
+    res.status(500).json({ message: 'Error al verificar usuario' })
+  }
+})
+
 // Login - Solo con email para usuarios no admin
 router.post('/login', async (req, res) => {
   try {
@@ -42,6 +79,65 @@ router.post('/login', async (req, res) => {
     res.json({ token, user: userWithoutPassword })
   } catch (error) {
     console.error('Error en login:', error)
+    res.status(500).json({ message: 'Error al iniciar sesión' })
+  }
+})
+
+// Login Admin - Con email y contraseña hasheada
+router.post('/admin/login', async (req, res) => {
+  try {
+    const { email, password } = req.body
+    const pool = getPool()
+
+    // Validar que email y contraseña sean proporcionados
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: 'El correo electrónico es requerido' })
+    }
+
+    if (!password || password.length === 0) {
+      return res.status(400).json({ message: 'La contraseña es requerida' })
+    }
+
+    const [users] = await pool.execute(
+      'SELECT * FROM users WHERE email = ?',
+      [email.trim()]
+    )
+
+    if (users.length === 0) {
+      return res.status(401).json({ message: 'Correo o contraseña incorrectos' })
+    }
+
+    const user = users[0]
+
+    // Verificar que sea admin
+    if (user.rol !== 'admin') {
+      return res.status(403).json({ 
+        message: 'Solo los administradores pueden acceder aquí' 
+      })
+    }
+
+    // Verificar que el usuario tenga contraseña
+    if (!user.password) {
+      return res.status(401).json({ message: 'Correo o contraseña incorrectos' })
+    }
+
+    // Validar contraseña con bcrypt
+    const passwordMatch = await bcrypt.compare(password, user.password)
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Correo o contraseña incorrectos' })
+    }
+
+    // Generar token JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email, rol: user.rol },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    )
+
+    const { password: _, ...userWithoutPassword } = user
+    res.json({ token, user: userWithoutPassword })
+  } catch (error) {
+    console.error('Error en login admin:', error)
     res.status(500).json({ message: 'Error al iniciar sesión' })
   }
 })

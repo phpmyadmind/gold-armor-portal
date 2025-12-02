@@ -46,11 +46,12 @@ const AdminTrivias = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
+      // Enviar directamente los índices; el backend se encarga de convertir a textos
       const data = {
         ...formData,
         respuestaCorrecta: formData.tipo === 'multiple'
-          ? formData.opciones.filter((_, i) => formData.respuestaCorrecta.includes(i)).map(i => formData.opciones[i])
-          : formData.opciones[parseInt(formData.respuestaCorrecta)]
+          ? formData.respuestaCorrecta // ya es array de índices
+          : formData.respuestaCorrecta // ya es string de índice
       }
 
       if (editingQuestion) {
@@ -67,12 +68,26 @@ const AdminTrivias = () => {
   }
 
   const handleEdit = (question) => {
+    // Al editar, convertir la respuesta (texto o array de textos) a índices
+    let opciones = question.opciones || ['', '', '', '']
+    let respuestaForForm = ''
+    if (question.tipo === 'multiple') {
+      // esperar que question.respuestaCorrecta sea array de textos
+      const raw = Array.isArray(question.respuestaCorrecta) ? question.respuestaCorrecta : (question.respuestaCorrecta ? [question.respuestaCorrecta] : [])
+      respuestaForForm = raw.map(r => opciones.indexOf(r)).filter(i => i >= 0)
+    } else {
+      // simple: convertir texto a índice en string
+      const raw = typeof question.respuestaCorrecta === 'string' ? question.respuestaCorrecta : (question.respuestaCorrecta ? String(question.respuestaCorrecta) : '')
+      const idx = opciones.indexOf(raw)
+      respuestaForForm = idx >= 0 ? idx.toString() : ''
+    }
+
     setEditingQuestion(question)
     setFormData({
       texto: question.texto,
       tipo: question.tipo,
-      opciones: question.opciones || ['', '', '', ''],
-      respuestaCorrecta: question.respuestaCorrecta,
+      opciones,
+      respuestaCorrecta: respuestaForForm,
       speakerId: question.speakerId || '',
       estacionId: question.estacionId || '',
       eventoId: question.eventoId || ''

@@ -52,29 +52,35 @@ const Register = () => {
 
     setLoading(true)
 
-    // 1. Primero verificar si el usuario existe intentando iniciar sesión
-    const loginResult = await login(formData.email, null)
-    
-    if (loginResult.success) {
-      // Usuario existe - sesión iniciada exitosamente
-      const userData = JSON.parse(localStorage.getItem('userData'))
-      
-      if (userData.rol === 'admin') {
-        // Los administradores no pueden usar el registro público
-        localStorage.removeItem('token')
-        localStorage.removeItem('userData')
-        setError('Los administradores deben usar /admin/login para iniciar sesión')
+    try {
+      // 1. Primero verificar si el usuario existe
+      const verifyResponse = await api.post('/auth/verify-user', {
+        email: formData.email
+      })
+
+      if (verifyResponse.data.exists) {
+        // Usuario existe - iniciar sesión automáticamente
+        const loginResult = await login(formData.email, null)
+        
+        if (loginResult.success) {
+          // Sesión iniciada exitosamente - redirigir a /stations
+          navigate('/stations')
+        } else {
+          setError(loginResult.message || 'Error al iniciar sesión')
+        }
         setLoading(false)
         return
       }
-      
-      // Usuario existe y sesión iniciada - redirigir a /stations
-      navigate('/stations')
-      setLoading(false)
-      return
+    } catch (error) {
+      // Usuario no existe (error 404 esperado)
+      if (error.response?.status !== 404) {
+        setError(error.response?.data?.message || 'Error al verificar usuario')
+        setLoading(false)
+        return
+      }
     }
 
-    // 2. Si el login falló, el usuario no existe - crear nuevo usuario
+    // 2. Usuario no existe - crear nuevo usuario automáticamente
     const identificacion = formData.email.split('@')[0] || Date.now().toString()
     
     const registerData = {
