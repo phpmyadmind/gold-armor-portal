@@ -5,12 +5,15 @@ import * as XLSX from 'xlsx'
 
 const router = express.Router()
 
-// Todas las rutas del dashboard requieren autenticación y rol director o staff
-router.use(authenticateToken)
-router.use(requireRole('director', 'staff'))
+// Función auxiliar para verificar acceso de director o staff
+const checkDirectorOrStaff = (req, res, next) => {
+  authenticateToken(req, res, () => {
+    requireRole('director', 'staff')(req, res, next)
+  })
+}
 
 // Estadísticas generales
-router.get('/stats', async (req, res) => {
+router.get('/stats', checkDirectorOrStaff, async (req, res) => {
   try {
     const pool = getPool()
     const [totalUsers] = await pool.execute('SELECT COUNT(*) as count FROM users WHERE rol = "usuario"')
@@ -38,7 +41,7 @@ router.get('/stats', async (req, res) => {
 })
 
 // Estadísticas por pregunta
-router.get('/questions-stats', async (req, res) => {
+router.get('/questions-stats', checkDirectorOrStaff, async (req, res) => {
   try {
     const pool = getPool()
     const [stats] = await pool.execute(`
@@ -61,7 +64,7 @@ router.get('/questions-stats', async (req, res) => {
 })
 
 // Estadísticas por speaker
-router.get('/speakers-stats', async (req, res) => {
+router.get('/speakers-stats', checkDirectorOrStaff, async (req, res) => {
   try {
     const pool = getPool()
     const [stats] = await pool.execute(`
@@ -83,7 +86,7 @@ router.get('/speakers-stats', async (req, res) => {
 })
 
 // Top usuarios
-router.get('/top-users', async (req, res) => {
+router.get('/top-users', checkDirectorOrStaff, async (req, res) => {
   try {
     const pool = getPool()
     const [topUsers] = await pool.execute(`
@@ -91,7 +94,8 @@ router.get('/top-users', async (req, res) => {
         u.id,
         u.nombre,
         u.ciudad,
-        COUNT(CASE WHEN r.esCorrecta = 1 THEN 1 END) * 100.0 / COUNT(r.id) as puntuacion
+        COALESCE(COUNT(CASE WHEN r.esCorrecta = 1 THEN 1 END) * 100.0 / NULLIF(COUNT(r.id), 0), 0) as puntuacion,
+        COALESCE(AVG(r.tiempoRespuesta), 0) as tiempoPromedio
       FROM users u
       LEFT JOIN responses r ON u.id = r.userId AND r.estado = "completado"
       WHERE u.rol = "usuario"
@@ -101,7 +105,14 @@ router.get('/top-users', async (req, res) => {
       LIMIT 5
     `)
     
-    res.json(topUsers)
+    // Asegurar que puntuacion y tiempoPromedio sean números
+    const formattedUsers = topUsers.map(user => ({
+      ...user,
+      puntuacion: parseFloat(user.puntuacion) || 0,
+      tiempoPromedio: parseFloat(user.tiempoPromedio) || 0
+    }))
+    
+    res.json(formattedUsers)
   } catch (error) {
     console.error('Error al obtener top usuarios:', error)
     res.status(500).json({ message: 'Error al obtener top usuarios' })
@@ -109,7 +120,7 @@ router.get('/top-users', async (req, res) => {
 })
 
 // Exportar a Excel
-router.get('/export/excel', async (req, res) => {
+router.get('/export/excel', checkDirectorOrStaff, async (req, res) => {
   try {
     const pool = getPool()
     const [data] = await pool.execute(`
