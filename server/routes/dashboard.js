@@ -1,8 +1,13 @@
 import express from 'express'
 import getPool from '../config/database.js'
+import { authenticateToken, requireRole } from '../middleware/auth.js'
 import * as XLSX from 'xlsx'
 
 const router = express.Router()
+
+// Todas las rutas del dashboard requieren autenticación y rol director o staff
+router.use(authenticateToken)
+router.use(requireRole('director', 'staff'))
 
 // Estadísticas generales
 router.get('/stats', async (req, res) => {

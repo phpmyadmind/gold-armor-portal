@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const ResourceViewer = ({ url, allowDownload = false }) => {
+const ResourceViewer = ({ url, allowDownload = false, disableMagnifier = false }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const containerRef = useRef(null);
@@ -117,29 +117,31 @@ const ResourceViewer = ({ url, allowDownload = false }) => {
           </div>
         )}
 
-        <div className="relative rounded-lg overflow-hidden" style={{ maxWidth: '100%', maxHeight: '70vh' }}>
+        <div className="relative rounded-lg overflow-hidden" style={{ maxWidth: '100%', maxHeight: '80vh' }}>
           <img
             ref={imgRef}
             src={url}
             alt="Recurso"
-            className="block max-w-full max-h-[70vh] object-contain"
+            className="block max-w-full max-h-[80vh] object-contain"
             onLoad={() => setIsLoading(false)}
             onError={() => setError(true)}
-            onMouseMove={handleMouseMove}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
+            onMouseMove={!disableMagnifier ? handleMouseMove : undefined}
+            onMouseEnter={!disableMagnifier ? handleMouseEnter : undefined}
+            onMouseLeave={!disableMagnifier ? handleMouseLeave : undefined}
             style={{ display: 'block' }}
           />
 
-          {/* Capa blanca que oculta la imagen; pointer-events none para dejar pasar eventos al img */}
-          <div
-            aria-hidden
-            className="absolute inset-0 bg-white z-20 pointer-events-none"
-            style={{ opacity: 1 }}
-          />
+          {/* Capa blanca que oculta la imagen; solo si el magnifier está activado */}
+          {!disableMagnifier && (
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-white z-20 pointer-events-none"
+              style={{ opacity: 1 }}
+            />
+          )}
 
           {/* Lupa: muestra la porción de imagen solo donde está la lupa */}
-          {showLens && !error && (
+          {!disableMagnifier && showLens && !error && (
             <div
               aria-hidden
               className="pointer-events-none rounded-full border border-gray-300 shadow-lg"

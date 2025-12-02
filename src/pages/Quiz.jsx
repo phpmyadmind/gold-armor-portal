@@ -5,7 +5,7 @@ import StationImage from '../components/StationImage'
 import QRCodeModal from '../components/QRCodeModal'
 import { normalizeQuestions } from '../utils/questionHelpers'
 
-const Quiz = () => {
+const Quizz = () => {
   const { id: stationId } = useParams()
   const navigate = useNavigate()
   const [questions, setQuestions] = useState([])
@@ -235,7 +235,7 @@ const Quiz = () => {
             >
               ← Volver
             </button>
-            <h1 className="text-white text-4xl font-bold">QUIZ</h1>
+            <h1 className="text-white text-4xl font-bold">QUIZZ</h1>
           </div>
           <div className="flex items-center gap-4">
             <button
@@ -376,5 +376,5 @@ const Quiz = () => {
   )
 }
 
-export default Quiz
+export default Quizz
 

@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.DEV ? 'http://localhost:5040/api' : 'https://api.armadurasdeoro.com/api',
+  baseURL: import.meta.env.DEV ? 'http://localhost:5040/api' : 'https://armadurasdeoro.com/api',
   headers: {
     'Content-Type': 'application/json'
   }

@@ -120,7 +120,7 @@ const StationDetail = () => {
   }, [id]);
 
   const handleStartQuiz = () => {
-    navigate(`/station/${id}/quiz`)
+    navigate(`/station/${id}/quizz`)
   }
 
   const handleOpenModal = () => {
@@ -220,13 +220,33 @@ const StationDetail = () => {
                   <span>{resourceType.label}</span>
                 </button>
               )}
+              
+              {/* Botones de descarga solo para estación 3 */}
+              {id === '3' && station3Downloads.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-white text-lg font-semibold mb-2">Descargar recursos:</h3>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {station3Downloads.map((download, index) => (
+                      <a
+                        key={index}
+                        href={download.url}
+                        download
+                        className="flex items-center gap-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-all border border-white border-opacity-30 hover:border-opacity-50"
+                      >
+                        <span className="text-xl">{download.icon}</span>
+                        <span className="font-medium">{download.name}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
-              <h2 className="text-white text-3xl font-bold mb-4">QUIZ</h2>
+              <h2 className="text-white text-3xl font-bold mb-4">QUIZZ</h2>
               {hasCompleted ? (
                 <div className="bg-green-500 bg-opacity-20 border border-green-500 rounded-lg p-4 mb-4">
-                  <p className="text-white">✓ Ya has completado el quiz de esta estación</p>
+                  <p className="text-white">✓ Ya has completado el quizz de esta estación</p>
                 </div>
               ) : (
                 <button
@@ -243,7 +263,12 @@ const StationDetail = () => {
       </div>
 
       {isModalOpen && (
-        <ResourceModal url={resourceUrl} onClose={handleCloseModal} allowDownload={id === '3'} />
+        <ResourceModal 
+          url={resourceUrl} 
+          onClose={handleCloseModal} 
+          allowDownload={id === '3'} 
+          disableMagnifier={id === '2'} 
+        />
       )}
     </div>
   )

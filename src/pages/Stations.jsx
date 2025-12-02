@@ -46,7 +46,7 @@ const Stations = () => {
 
         {/* Texto introductorio */}
         <p className="text-white text-lg md:text-xl text-center mb-12 max-w-3xl mx-auto">
-          Pon a prueba tu valentía responde el quiz de cada estación y avanza en orden para demostrar que tú también puedes forjar esperanza y proteger vidas.
+          Pon a prueba tu valentía responde el quizz de cada estación y avanza en orden para demostrar que tú también puedes forjar esperanza y proteger vidas.
         </p>
 
         {/* Botones de estaciones con imágenes */}

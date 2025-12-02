@@ -88,7 +88,7 @@ gold-armor-portal/
 - `/register` - Registro de usuarios
 - `/stations` - Lista de estaciones
 - `/station/:id` - Detalle de estación
-- `/quiz/:stationId` - Quiz interactivo
+- `/quizz/:stationId` - Quizz interactivo
 - `/admin` - Panel de administración
 - `/director` - Dashboard de director
 

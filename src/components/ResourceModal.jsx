@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ResourceViewer from './ResourceViewer';
 
-const ResourceModal = ({ url, onClose, allowDownload = false }) => {
+const ResourceModal = ({ url, onClose, allowDownload = false, disableMagnifier = false }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   if (!url) return null;
@@ -45,7 +45,7 @@ const ResourceModal = ({ url, onClose, allowDownload = false }) => {
 
         {/* Contenido */}
         <div className="flex justify-center items-center">
-          <ResourceViewer url={url} allowDownload={allowDownload} />
+          <ResourceViewer url={url} allowDownload={allowDownload} disableMagnifier={disableMagnifier} />
         </div>
 
         {/* Pie de página */}

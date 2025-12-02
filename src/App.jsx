@@ -7,7 +7,7 @@ import Home from './pages/Home'
 import Register from './pages/Register'
 import Stations from './pages/Stations'
 import StationDetail from './pages/StationDetail'
-import Quiz from './pages/Quiz'
+import Quizz from './pages/Quiz'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminEvents from './pages/admin/AdminEvents'
 import AdminUsers from './pages/admin/AdminUsers'
@@ -87,10 +87,20 @@ function App() {
             />
             
             <Route 
+              path="/station/:id/quizz" 
+              element={
+                <ProtectedRoute>
+                  <Quizz />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Ruta legacy para compatibilidad */}
+            <Route 
               path="/station/:id/quiz" 
               element={
                 <ProtectedRoute>
-                  <Quiz />
+                  <Quizz />
                 </ProtectedRoute>
               } 
             />
@@ -150,11 +160,13 @@ function App() {
               } 
             />
 
-            {/* Director Routes */}
+            {/* Director Routes - Accesible para director y staff */}
             <Route 
               path="/director" 
               element={
-                <Layout><DirectorDashboard /></Layout>
+                <ProtectedRoute allowedRoles={['director', 'staff']}>
+                  <Layout><DirectorDashboard /></Layout>
+                </ProtectedRoute>
               } 
             />
           </Routes>

@@ -57,7 +57,14 @@ const Header = () => {
                       Panel Speaker
                     </button>
                   )}
-                  {/* Dashboard Director removed from user menu by requirement */}
+                  {(user.rol === 'director' || user.rol === 'staff') && (
+                    <button
+                      onClick={() => { window.open(`${window.location.origin}/director`, '_blank'); setShowMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-100"
+                    >
+                      Dashboard de Calificaciones
+                    </button>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"

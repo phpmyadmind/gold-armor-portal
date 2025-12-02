@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Navigate } from 'react-router-dom'
 
 // Componente reutilizable para mostrar imagen de estación con fallback
 const StationImage = ({ stationId, className = "max-w-xs md:max-w-sm h-auto object-contain drop-shadow-2xl", size = "large" }) => {
@@ -16,6 +17,10 @@ const StationImage = ({ stationId, className = "max-w-xs md:max-w-sm h-auto obje
         <div className={`text-white font-bold ${fontSizeClass}`}>{stationId}</div>
       </div>
     )
+  }
+  
+  if (stationId > '4') {
+    return <Navigate to="/stations" replace />
   }
   
   return (

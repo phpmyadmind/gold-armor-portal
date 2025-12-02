@@ -87,7 +87,7 @@ function formatQuestionForAdmin(q) {
   }
 }
 
-// Función para formatear pregunta para Quiz (usa textos, no índices)
+// Función para formatear pregunta para Quizz (usa textos, no índices)
 function formatQuestionForQuiz(q) {
   const opciones = columnasAOpciones(q)
   const respuestaCorrecta = q.respuestaCorrecta_valor
@@ -131,7 +131,7 @@ router.get('/', authenticateToken, requireRole('admin'), async (req, res) => {
   }
 })
 
-// Obtener preguntas por estación (para Quiz - usuarios normales)
+// Obtener preguntas por estación (para Quizz - usuarios normales)
 // Este endpoint es público y accesible para todos los usuarios (incluido rol "usuario")
 router.get('/station/:stationId', async (req, res) => {
   try {
