@@ -54,6 +54,9 @@ const AdminTrivias = () => {
           : formData.respuestaCorrecta // ya es string de índice
       }
 
+      console.log('DEBUG SUBMIT - formData:', formData)
+      console.log('DEBUG SUBMIT - data a enviar:', data)
+
       if (editingQuestion) {
         await api.put(`/questions/${editingQuestion.id}`, data)
       } else {

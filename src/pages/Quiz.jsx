@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import StationImage from '../components/StationImage'
+import QRCodeModal from '../components/QRCodeModal'
 
 const Quiz = () => {
   const { id: stationId } = useParams()
@@ -13,6 +14,7 @@ const Quiz = () => {
   const [startTime, setStartTime] = useState(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [showQRCode, setShowQRCode] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -161,11 +163,20 @@ const Quiz = () => {
             </button>
             <h1 className="text-white text-4xl font-bold">QUIZ</h1>
           </div>
-          <StationImage 
-            stationId={stationId} 
-            className="max-w-[120px] h-auto object-contain drop-shadow-2xl" 
-            size="small" 
-          />
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowQRCode(true)}
+              className="bg-sky-blue text-white px-4 py-2 rounded-lg hover:bg-opacity-80 transition-colors flex items-center gap-2"
+              title="Generar código QR"
+            >
+              📱 QR
+            </button>
+            <StationImage 
+              stationId={stationId} 
+              className="max-w-[120px] h-auto object-contain drop-shadow-2xl" 
+              size="small" 
+            />
+          </div>
         </div>
 
         {/* Información de la estación */}
@@ -263,6 +274,14 @@ const Quiz = () => {
           ></div>
         </div>
       </div>
+
+      {/* Modal de QR */}
+      {showQRCode && (
+        <QRCodeModal 
+          url={window.location.href} 
+          onClose={() => setShowQRCode(false)} 
+        />
+      )}
     </div>
   )
 }

@@ -9,8 +9,8 @@ function parseOpciones(opcionesRaw) {
   try {
     return JSON.parse(opcionesRaw || '[]')
   } catch (err) {
-    if (typeof opcionesRaw === 'string' && opcionesRaw.includes('|')) {
-      return opcionesRaw.split('|').map(s => s.trim())
+    if (typeof opcionesRaw === 'string' && opcionesRaw.includes(',')) {
+      return opcionesRaw.split(',').map(s => s.trim())
     } else if (typeof opcionesRaw === 'string' && opcionesRaw.trim().length) {
       return [opcionesRaw.trim()]
     }
@@ -152,6 +152,14 @@ router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
     const pool = getPool()
     let { texto, tipo, opciones, respuestaCorrecta, speakerId, estacionId, eventoId } = req.body
     
+    console.log('DEBUG POST - Datos recibidos:', {
+      texto,
+      tipo,
+      opciones,
+      respuestaCorrecta,
+      respuestaCorrecta_type: Array.isArray(respuestaCorrecta) ? 'array' : typeof respuestaCorrecta
+    })
+    
     // Validar datos requeridos
     if (!texto || !estacionId) {
       return res.status(400).json({ message: 'Texto y estacionId son requeridos' })
@@ -176,6 +184,8 @@ router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
         respuestaParaBD = opciones[idx]
       }
     }
+    
+    console.log('DEBUG POST - Respuesta para BD:', respuestaParaBD)
 
     const [result] = await pool.execute(
       'INSERT INTO questions (texto, tipo, opciones, respuestaCorrecta, speakerId, estacionId, eventoId) VALUES (?, ?, ?, ?, ?, ?, ?)',
