@@ -8,6 +8,7 @@ import stationsRoutes from './routes/stations.js'
 import questionsRoutes from './routes/questions.js'
 import responsesRoutes from './routes/responses.js'
 import dashboardRoutes from './routes/dashboard.js'
+import settingsRoutes from './routes/settings.js' // Importar nueva ruta
 import { ensureDatabaseExists, createPool, getPool } from './config/database.js'
 
 dotenv.config()
@@ -15,7 +16,12 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 5040
 
-app.use(cors())
+const corsOptions = {
+  origin: '*',
+  methods: 'GET,POST,PUT,DELETE,OPTIONS',
+  allowedHeaders: 'Content-Type,Authorization',
+};
+app.use(cors(corsOptions))
 app.use(express.json())
 
 // Rutas
@@ -26,6 +32,7 @@ app.use('/api/stations', stationsRoutes)
 app.use('/api/questions', questionsRoutes)
 app.use('/api/responses', responsesRoutes)
 app.use('/api/dashboard', dashboardRoutes)
+app.use('/api/settings', settingsRoutes) // Usar nueva ruta
 
 // Inicializar base de datos y servidor
 async function startServer() {
@@ -99,8 +106,23 @@ async function initializeDatabase(pool) {
         problema TEXT,
         videoUrl VARCHAR(500),
         descripcion TEXT,
+        headerText VARCHAR(255),
         createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `)
+
+    // Tabla de configuración de eventos
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS event_settings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        eventId INT NOT NULL,
+        bodyBackground VARCHAR(255),
+        buttonText VARCHAR(255),
+        resourcesLink VARCHAR(500),
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (eventId) REFERENCES events(id) ON DELETE CASCADE
       )
     `)
 
@@ -166,4 +188,3 @@ app.listen(PORT, () => {
     process.exit(1)
   }
 })
-

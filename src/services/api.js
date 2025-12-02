@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:5040/api',
+  baseURL: import.meta.env.DEV ? 'http://localhost:5040/api' : 'https://api.armadurasdeoro.com/api',
   headers: {
     'Content-Type': 'application/json'
   }
@@ -36,4 +36,3 @@ api.interceptors.response.use(
 )
 
 export default api
-

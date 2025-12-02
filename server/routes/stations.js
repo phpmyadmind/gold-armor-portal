@@ -9,27 +9,27 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const pool = getPool()
     const [stations] = await pool.execute(
-      'SELECT * FROM stations ORDER BY orden ASC'
+      'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations ORDER BY orden ASC'
     )
     
     // Si no hay estaciones, crear las 4 por defecto
     if (stations.length === 0) {
       const defaultStations = [
-        { nombre: 'Estación 1', orden: 1 },
-        { nombre: 'Estación 2', orden: 2 },
-        { nombre: 'Estación 3', orden: 3 },
-        { nombre: 'Estación 4', orden: 4 }
+        { nombre: 'Estación 1', orden: 1, headerText: 'ARMADURAS DE ORO' },
+        { nombre: 'Estación 2', orden: 2, headerText: 'ARMADURAS DE ORO' },
+        { nombre: 'Estación 3', orden: 3, headerText: 'ARMADURAS DE ORO' },
+        { nombre: 'Estación 4', orden: 4, headerText: 'ARMADURAS DE ORO' }
       ]
       
       for (const station of defaultStations) {
         await pool.execute(
-          'INSERT INTO stations (nombre, orden) VALUES (?, ?)',
-          [station.nombre, station.orden]
+          'INSERT INTO stations (nombre, orden, headerText) VALUES (?, ?, ?)',
+          [station.nombre, station.orden, station.headerText]
         )
       }
       
       const [newStations] = await pool.execute(
-        'SELECT * FROM stations ORDER BY orden ASC'
+        'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations ORDER BY orden ASC'
       )
       return res.json(newStations)
     }
@@ -47,7 +47,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     const pool = getPool()
     const { id } = req.params
     const [stations] = await pool.execute(
-      'SELECT * FROM stations WHERE id = ?',
+      'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations WHERE id = ?',
       [id]
     )
     

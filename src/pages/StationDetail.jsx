@@ -2,13 +2,17 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import StationImage from '../components/StationImage'
+import { useEventSettings } from '../hooks/useEventSettings'
+import ResourceModal from '../components/ResourceModal' // Importar el modal
 
 const StationDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { settings } = useEventSettings()
   const [station, setStation] = useState(null)
   const [loading, setLoading] = useState(true)
   const [hasCompleted, setHasCompleted] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false) // Estado para el modal
 
   useEffect(() => {
     const fetchStation = async () => {
@@ -16,7 +20,6 @@ const StationDetail = () => {
         const response = await api.get(`/stations/${id}`)
         setStation(response.data)
         
-        // Verificar si el usuario ya completó esta estación
         const userData = JSON.parse(localStorage.getItem('userData'))
         if (userData) {
           const completedResponse = await api.get(`/responses/station/${id}/completed`)
@@ -24,7 +27,6 @@ const StationDetail = () => {
         }
       } catch (error) {
         console.error('Error al cargar estación:', error)
-        // Datos por defecto
         setStation({
           id: parseInt(id),
           nombre: `Estación ${id}`,
@@ -43,6 +45,16 @@ const StationDetail = () => {
     navigate(`/station/${id}/quiz`)
   }
 
+  const handleOpenModal = () => {
+    if (station?.videoUrl || settings?.resourcesLink) {
+        setIsModalOpen(true)
+    }
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -50,37 +62,38 @@ const StationDetail = () => {
       </div>
     )
   }
+  
+  // Determinar qué URL usar: la específica de la estación o la general del evento.
+  const resourceUrl = station?.videoUrl || settings?.resourcesLink;
 
   return (
     <div className="min-h-screen px-4 py-12">
       <div className="max-w-6xl mx-auto">
-        {/* Título */}
         <h1 className="text-gold-orange text-4xl md:text-5xl font-bold text-center mb-12">
-          ARMADURAS DE ORO
+          {station?.headerText || 'ARMADURAS DE ORO'}
         </h1>
 
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Logo de Estación */}
           <div className="flex-shrink-0 flex justify-center md:justify-start">
             <StationImage stationId={id} />
           </div>
 
-          {/* Contenido principal */}
           <div className="flex-1 space-y-8">
-            {/* El Problema */}
             <div>
               <h2 className="text-white text-2xl font-bold mb-4">EL PROBLEMA</h2>
               <p className="text-white text-lg mb-6">
                 {station?.problema || 'Para vencer al dragón, primero debemos conocerlo'}
               </p>
-              {station?.videoUrl && (
-                <button className="bg-gold-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-colors">
-                  Ver video
+              {resourceUrl && (
+                <button 
+                  onClick={handleOpenModal}
+                  className="bg-gold-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-colors"
+                >
+                  {settings?.buttonText || 'Ver recursos'}
                 </button>
               )}
             </div>
 
-            {/* Quiz */}
             <div>
               <h2 className="text-white text-3xl font-bold mb-4">QUIZ</h2>
               {hasCompleted ? (
@@ -99,9 +112,12 @@ const StationDetail = () => {
           </div>
         </div>
       </div>
+
+      {isModalOpen && (
+        <ResourceModal url={resourceUrl} onClose={handleCloseModal} />
+      )}
     </div>
   )
 }
 
 export default StationDetail
-
