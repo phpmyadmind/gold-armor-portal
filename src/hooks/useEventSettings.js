@@ -1,27 +1,32 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import api from '../services/api'
+import { useState, useEffect } from 'react';
+import api from '../services/api';
 
+/**
+ * Hook para obtener la configuración de diseño del evento ACTIVO.
+ * Llama al endpoint /designs/event/active para obtener los estilos
+ * y los devuelve. Es independiente del usuario.
+ */
 export const useEventSettings = () => {
-  const { user } = useAuth()
-  const [settings, setSettings] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      if (user?.eventoId) {
-        try {
-          const response = await api.get(`/settings/${user.eventoId}`)
-          setSettings(response.data)
-        } catch (error) {
-          console.error('Error al cargar la configuración del evento:', error)
-        }
+    const fetchActiveEventDesign = async () => {
+      setLoading(true);
+      try {
+        const { data } = await api.get('/designs/event/active');
+        setSettings(data);
+      } catch (error) {
+        console.error('No se pudo cargar el diseño del evento activo:', error.response?.data?.message || error.message);
+        // Si no hay diseño, se usa un objeto vacío para evitar errores
+        setSettings({}); 
+      } finally {
+        setLoading(false);
       }
-      setLoading(false)
-    }
+    };
 
-    fetchSettings()
-  }, [user])
+    fetchActiveEventDesign();
+  }, []); // Se ejecuta solo una vez al cargar la app
 
-  return { settings, loading }
-}
+  return { settings, loading };
+};
