@@ -19,10 +19,11 @@ const AdminEvents = () => {
 
   const fetchEvents = async () => {
     try {
-      const response = await api.get('/events')
-      setEvents(response.data)
+      const eventsData = await api.get('/events')
+      setEvents(eventsData || [])
     } catch (error) {
       console.error('Error al cargar eventos:', error)
+      setEvents([])
     } finally {
       setLoading(false)
     }
@@ -216,4 +217,3 @@ const AdminEvents = () => {
 }
 
 export default AdminEvents
-

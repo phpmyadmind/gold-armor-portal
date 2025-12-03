@@ -19,7 +19,6 @@ const AdminTrivias = () => {
     eventoId: ''
   });
 
-  // Mapa de estados para la UI
   const statusMap = {
     draft: { text: 'Borrador', color: 'bg-yellow-500' },
     active: { text: 'Activa', color: 'bg-green-500' },
@@ -39,14 +38,17 @@ const AdminTrivias = () => {
         api.get('/users?rol=speaker'),
         api.get('/events')
       ]);
-      // Los datos ya vienen estructurados desde el backend, no se necesita normalización.
-      setQuestions(questionsRes.data);
-      setStations(stationsRes.data);
-      setSpeakers(speakersRes.data);
-      setEvents(eventsRes.data);
+      setQuestions(questionsRes || []);
+      setStations(stationsRes || []);
+      setSpeakers(speakersRes || []);
+      setEvents(eventsRes || []);
     } catch (error) {
       console.error('Error al cargar los datos iniciales:', error);
       alert('Hubo un error al cargar los datos. Revisa la consola para más detalles.');
+      setQuestions([]);
+      setStations([]);
+      setSpeakers([]);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -68,7 +70,6 @@ const AdminTrivias = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Filtrar opciones vacías antes de enviar
     const dataToSend = {
       ...formData,
       opciones: formData.opciones.filter(op => op.trim() !== '')
@@ -80,7 +81,7 @@ const AdminTrivias = () => {
       } else {
         await api.post('/questions', dataToSend);
       }
-      fetchData(); // Recargar todos los datos
+      fetchData();
       resetForm();
     } catch (error) {
       console.error('Error al guardar la pregunta:', error);
@@ -89,7 +90,6 @@ const AdminTrivias = () => {
   };
 
   const handleEdit = (question) => {
-    // Asegura que siempre haya al menos 4 campos de opciones en el formulario
     const formOpciones = [...(question.opciones || [])];
     while (formOpciones.length < 4) {
       formOpciones.push('');
@@ -100,7 +100,6 @@ const AdminTrivias = () => {
       texto: question.texto,
       tipo: question.tipo,
       opciones: formOpciones,
-      // La respuesta correcta ahora se maneja por índice, que es lo que espera el backend
       respuestaCorrecta: question.respuestaIndices,
       speakerId: question.speakerId || '',
       estacionId: question.estacionId || '',
@@ -134,8 +133,6 @@ const AdminTrivias = () => {
     setShowForm(false);
   };
 
-  // El JSX no necesita cambios significativos, ya que ahora los datos son correctos.
-
   return (
     <div className="min-h-screen px-4 py-12">
       <div className="max-w-6xl mx-auto">
@@ -151,7 +148,6 @@ const AdminTrivias = () => {
 
         {showForm && (
            <form onSubmit={handleSubmit} className="bg-white bg-opacity-10 rounded-lg p-6 mb-8">
-           {/* El JSX del formulario se mantiene igual, ya que `formData` tiene la estructura correcta */}
            </form>
         )}
 

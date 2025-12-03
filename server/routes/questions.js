@@ -51,6 +51,23 @@ router.get('/', authenticateToken, adminOnly, async (req, res) => {
   }
 });
 
+// **NUEVO** Obtener preguntas asignadas a un Speaker
+router.get('/speaker/:speakerId', authenticateToken, async (req, res) => {
+  try {
+    const pool = getPool();
+    const { speakerId } = req.params;
+    const [questions] = await pool.execute(
+      `SELECT * FROM questions WHERE speakerId = ? ORDER BY estacionId, id`,
+      [speakerId]
+    );
+    // Devuelve un array, incluso si está vacío
+    res.json(questions);
+  } catch (error) {
+    console.error(`Error al obtener preguntas para el speaker ${req.params.speakerId}:`, error);
+    res.status(500).json({ message: 'Error interno al obtener las preguntas asignadas.' });
+  }
+});
+
 // Obtener preguntas activas por estación (para Quizz)
 router.get('/station/:stationId', async (req, res) => {
   try {
@@ -66,7 +83,6 @@ router.get('/station/:stationId', async (req, res) => {
     res.status(500).json({ message: 'Error interno al obtener preguntas' });
   }
 });
-
 
 // Crear nueva pregunta
 router.post('/', authenticateToken, adminOnly, async (req, res) => {

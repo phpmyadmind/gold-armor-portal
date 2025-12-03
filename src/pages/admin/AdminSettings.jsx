@@ -12,10 +12,13 @@ const AdminSettings = () => {
     const fetchSettings = async () => {
       if (user?.eventoId) {
         try {
-          const response = await api.get(`/settings/${user.eventoId}`)
-          setSettings(response.data)
+          const settingsData = await api.get(`/settings/${user.eventoId}`)
+          // Aseguramos que el estado sea siempre un objeto
+          setSettings(settingsData || {})
         } catch (error) {
           console.error('Error al cargar la configuración:', error)
+          // Si falla, seteamos un objeto vacío para no romper la UI
+          setSettings({})
         }
       }
       setLoading(false)

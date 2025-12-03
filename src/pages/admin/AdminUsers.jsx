@@ -22,10 +22,14 @@ const AdminUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/users')
-      setUsers(response.data)
+      // Gracias al interceptor de Axios, la respuesta ya son los datos directamente.
+      const usersData = await api.get('/users')
+      // Nos aseguramos de que el estado sea siempre un array para evitar errores de renderizado.
+      setUsers(usersData || [])
     } catch (error) {
       console.error('Error al cargar usuarios:', error)
+      // Si la petición falla, seteamos un array vacío para no romper la UI.
+      setUsers([])
     } finally {
       setLoading(false)
     }
@@ -35,10 +39,8 @@ const AdminUsers = () => {
     e.preventDefault()
     try {
       if (editingId) {
-        // Editar usuario
         await api.put(`/users/${editingId}`, formData)
       } else {
-        // Crear usuario
         await api.post('/users', formData)
       }
       fetchUsers()
@@ -54,7 +56,7 @@ const AdminUsers = () => {
       nombre: user.nombre,
       identificacion: user.identificacion,
       email: user.email,
-      password: '', // No pre-rellenar password por seguridad
+      password: '', 
       rol: user.rol,
       ciudad: user.ciudad || ''
     })
@@ -254,5 +256,3 @@ const AdminUsers = () => {
 }
 
 export default AdminUsers
-
-

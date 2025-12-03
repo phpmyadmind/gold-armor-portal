@@ -21,10 +21,11 @@ const AdminStations = () => {
 
   const fetchStations = async () => {
     try {
-      const response = await api.get('/stations')
-      setStations(response.data)
+      const stationsData = await api.get('/stations')
+      setStations(stationsData || [])
     } catch (error) {
       console.error('Error al cargar estaciones:', error)
+      setStations([])
     } finally {
       setLoading(false)
     }
@@ -34,10 +35,8 @@ const AdminStations = () => {
     e.preventDefault()
     try {
       if (editingId) {
-        // Editar
         await api.put(`/stations/${editingId}`, formData)
       } else {
-        // Crear
         await api.post('/stations', formData)
       }
       fetchStations()

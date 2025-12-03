@@ -7,7 +7,7 @@ const api = axios.create({
   }
 })
 
-// Interceptor para agregar token
+// Interceptor para agregar token en cada petición
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
@@ -21,16 +21,23 @@ api.interceptors.request.use(
   }
 )
 
-// Interceptor para manejar errores
+// Interceptor para estandarizar respuestas y manejar errores
 api.interceptors.response.use(
-  (response) => response,
+  // 1. Para respuestas exitosas (2xx), devuelve directamente los datos.
+  (response) => response.data,
+  
+  // 2. Para errores, maneja el caso de 401 y rechaza la promesa.
   (error) => {
+    // Si el token es inválido o ha expirado, desloguea al usuario.
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('userData')
-      // Redirigir a Home, desde allí se puede acceder a /register
+      // Redirige a la página de inicio. El flujo de la app se encargará
+      // de mostrar la página de login si es necesario.
       window.location.href = '/'
     }
+    
+    // Rechazar la promesa para que el bloque .catch() del componente se active.
     return Promise.reject(error)
   }
 )

@@ -30,7 +30,6 @@ export const AuthProvider = ({ children }) => {
           setUser(userData);
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         } catch (error) {
-          // Si los datos están corruptos, limpiar
           console.error("Error al parsear datos de usuario:", error);
           localStorage.removeItem('token');
           localStorage.removeItem('userData');
@@ -51,17 +50,24 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Login para usuarios con roles (admin, director, etc.)
-  const loginAdmin = useCallback(async (email, password) => {
-    const response = await api.post('/auth/admin/login', { email, password });
-    const { token, user: userData } = response.data;
-    updateUserState(token, userData);
-    return userData; // Devolver datos del usuario para manejar redirección
+  const login = useCallback(async (email, password) => {
+    try {
+      const response = await api.post('/auth/admin/login', { email, password });
+      // FIX: La respuesta ya es el objeto de datos gracias al interceptor
+      const { token, user: userData } = response;
+      updateUserState(token, userData);
+      return { success: true };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Error al iniciar sesión. Verifique sus credenciales.';
+      return { success: false, message };
+    }
   }, [updateUserState]);
 
   // Registro y login para participantes del evento
   const registerUser = useCallback(async (userDataPayload) => {
     const response = await api.post('/auth/register', userDataPayload);
-    const { token, user: userData } = response.data;
+    // FIX: La respuesta ya es el objeto de datos gracias al interceptor
+    const { token, user: userData } = response;
     updateUserState(token, userData);
     return userData;
   }, [updateUserState]);
@@ -75,16 +81,15 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // --- VALOR DEL CONTEXTO (MEMOIZADO CON useMemo) ---
-  // Esto previene re-renders innecesarios en los componentes consumidores
   const value = useMemo(() => ({
     user,
     loading,
     isAuthenticated: !!user,
     isAdmin: user?.rol === 'admin',
-    loginAdmin,
+    login,
     registerUser,
     logout,
-  }), [user, loading, loginAdmin, registerUser, logout]);
+  }), [user, loading, login, registerUser, logout]);
 
   // Renderizar el proveedor con el valor memoizado
   return (
