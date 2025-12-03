@@ -1,139 +1,111 @@
-import express from 'express'
-import getPool from '../config/database.js'
-import { authenticateToken, requireRole } from '../middleware/auth.js'
-import { resolveUrls, resolveUrlsInArray } from '../utils/urlHelper.js'
+import express from 'express';
+import getPool from '../config/database.js';
+import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { resolveUrls, resolveUrlsInArray } from '../utils/urlHelper.js';
 
-const router = express.Router()
+const router = express.Router();
+const adminOnly = requireRole('admin');
 
-// Obtener todas las estaciones
-router.get('/', authenticateToken, requireRole('admin'), async (req, res) => {
+// Propiedades de una estación para no repetir en las consultas
+const STATION_PROPERTIES = 'id, nombre, orden, problema, videoUrl, imageUrl, descripcion, headerText';
+
+// Obtener todas las estaciones (para el frontend principal)
+router.get('/', async (req, res) => {
   try {
-    const pool = getPool()
-    const [stations] = await pool.execute(
-      'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations ORDER BY orden ASC'
-    )
+    const pool = getPool();
+    // Se quita la autenticación para que cualquier usuario pueda ver las estaciones
+    const [stations] = await pool.execute(`SELECT ${STATION_PROPERTIES} FROM stations ORDER BY orden ASC`);
     
-    // Si no hay estaciones, crear las 4 por defecto
-    if (stations.length === 0) {
-      const defaultStations = [
-        { nombre: 'Estación 1', orden: 1, headerText: 'ARMADURAS DE ORO' },
-        { nombre: 'Estación 2', orden: 2, headerText: 'ARMADURAS DE ORO' },
-        { nombre: 'Estación 3', orden: 3, headerText: 'ARMADURAS DE ORO' },
-        { nombre: 'Estación 4', orden: 4, headerText: 'ARMADURAS DE ORO' }
-      ]
-      
-      for (const station of defaultStations) {
-        await pool.execute(
-          'INSERT INTO stations (nombre, orden, headerText) VALUES (?, ?, ?)',
-          [station.nombre, station.orden, station.headerText]
-        )
-      }
-      
-      const [newStations] = await pool.execute(
-        'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations ORDER BY orden ASC'
-      )
-      // Resolver URLs relativas a completas
-      const resolvedStations = resolveUrlsInArray(newStations, ['videoUrl'])
-      return res.json(resolvedStations)
-    }
-    
-    // Resolver URLs relativas a completas
-    const resolvedStations = resolveUrlsInArray(stations, ['videoUrl'])
-    res.json(resolvedStations)
+    // Resolver URLs relativas a completas para videoUrl y imageUrl
+    const resolvedStations = resolveUrlsInArray(stations, ['videoUrl', 'imageUrl']);
+    res.json(resolvedStations);
   } catch (error) {
-    console.error('Error al obtener estaciones:', error)
-    res.status(500).json({ message: 'Error al obtener estaciones' })
+    console.error('Error al obtener estaciones:', error);
+    res.status(500).json({ message: 'Error interno al obtener estaciones' });
   }
-})
+});
 
-// Obtener estación por ID
+// Obtener una estación por ID (para el detalle y edición)
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const pool = getPool()
-    const { id } = req.params
-    const [stations] = await pool.execute(
-      'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations WHERE id = ?',
-      [id]
-    )
+    const pool = getPool();
+    const { id } = req.params;
+    const [stations] = await pool.execute(`SELECT ${STATION_PROPERTIES} FROM stations WHERE id = ?`, [id]);
     
     if (stations.length === 0) {
-      return res.status(404).json({ message: 'Estación no encontrada' })
+      return res.status(404).json({ message: 'Estación no encontrada' });
     }
     
-    // Resolver URLs relativas a completas
-    const resolvedStation = resolveUrls(stations[0], ['videoUrl'])
-    res.json(resolvedStation)
+    // Resolver URLs para la estación individual
+    const resolvedStation = resolveUrls(stations[0], ['videoUrl', 'imageUrl']);
+    res.json(resolvedStation);
   } catch (error) {
-    console.error('Error al obtener estación:', error)
-    res.status(500).json({ message: 'Error al obtener estación' })
+    console.error('Error al obtener estación:', error);
+    res.status(500).json({ message: 'Error interno al obtener la estación' });
   }
-})
+});
 
-// Crear estación
-router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
+// Crear una nueva estación (admin)
+router.post('/', authenticateToken, adminOnly, async (req, res) => {
   try {
-    const pool = getPool()
-    const { nombre, orden, problema, videoUrl, descripcion, headerText } = req.body
+    const pool = getPool();
+    const { nombre, orden, problema, videoUrl, imageUrl, descripcion, headerText } = req.body;
 
     const [result] = await pool.execute(
-      'INSERT INTO stations (nombre, orden, problema, videoUrl, descripcion, headerText) VALUES (?, ?, ?, ?, ?, ?)',
-      [nombre, orden || 1, problema || null, videoUrl || null, descripcion || null, headerText || 'ARMADURAS DE ORO']
-    )
+      'INSERT INTO stations (nombre, orden, problema, videoUrl, imageUrl, descripcion, headerText) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [nombre, orden || 1, problema, videoUrl, imageUrl, descripcion, headerText || 'ARMADURAS DE ORO']
+    );
 
-    const [newStation] = await pool.execute(
-      'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations WHERE id = ?',
-      [result.insertId]
-    )
-
-    const resolvedStation = resolveUrls(newStation[0], ['videoUrl'])
-    res.json(resolvedStation)
+    const [newStation] = await pool.execute(`SELECT ${STATION_PROPERTIES} FROM stations WHERE id = ?`, [result.insertId]);
+    const resolvedStation = resolveUrls(newStation[0], ['videoUrl', 'imageUrl']);
+    res.status(201).json(resolvedStation);
   } catch (error) {
-    console.error('Error al crear estación:', error)
-    res.status(500).json({ message: 'Error al crear estación' })
+    console.error('Error al crear estación:', error);
+    res.status(500).json({ message: 'Error interno al crear la estación' });
   }
-})
+});
 
-// Editar estación
-router.put('/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+// Editar una estación (admin)
+router.put('/:id', authenticateToken, adminOnly, async (req, res) => {
   try {
-    const pool = getPool()
-    const { id } = req.params
-    const { nombre, orden, problema, videoUrl, descripcion, headerText } = req.body
+    const pool = getPool();
+    const { id } = req.params;
+    const { nombre, orden, problema, videoUrl, imageUrl, descripcion, headerText } = req.body;
 
-    await pool.execute(
-      'UPDATE stations SET nombre = ?, orden = ?, problema = ?, videoUrl = ?, descripcion = ?, headerText = ? WHERE id = ?',
-      [nombre, orden || 1, problema || null, videoUrl || null, descripcion || null, headerText || 'ARMADURAS DE ORO', id]
-    )
+    const [result] = await pool.execute(
+      'UPDATE stations SET nombre = ?, orden = ?, problema = ?, videoUrl = ?, imageUrl = ?, descripcion = ?, headerText = ? WHERE id = ?',
+      [nombre, orden, problema, videoUrl, imageUrl, descripcion, headerText, id]
+    );
 
-    const [updatedStation] = await pool.execute(
-      'SELECT id, nombre, orden, problema, videoUrl, descripcion, headerText FROM stations WHERE id = ?',
-      [id]
-    )
-
-    if (updatedStation.length === 0) {
-      return res.status(404).json({ message: 'Estación no encontrada' })
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Estación no encontrada' });
     }
 
-    const resolvedStation = resolveUrls(updatedStation[0], ['videoUrl'])
-    res.json(resolvedStation)
+    const [updatedStation] = await pool.execute(`SELECT ${STATION_PROPERTIES} FROM stations WHERE id = ?`, [id]);
+    const resolvedStation = resolveUrls(updatedStation[0], ['videoUrl', 'imageUrl']);
+    res.json(resolvedStation);
   } catch (error) {
-    console.error('Error al editar estación:', error)
-    res.status(500).json({ message: 'Error al editar estación' })
+    console.error('Error al editar estación:', error);
+    res.status(500).json({ message: 'Error interno al editar la estación' });
   }
-})
+});
 
-// Eliminar estación
-router.delete('/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+// Eliminar una estación (admin)
+router.delete('/:id', authenticateToken, adminOnly, async (req, res) => {
   try {
-    const pool = getPool()
-    const { id } = req.params
-    await pool.execute('DELETE FROM stations WHERE id = ?', [id])
-    res.json({ message: 'Estación eliminada' })
+    const pool = getPool();
+    const { id } = req.params;
+    const [result] = await pool.execute('DELETE FROM stations WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+        return res.status(404).json({ message: 'Estación no encontrada' });
+    }
+
+    res.status(200).json({ message: 'Estación eliminada exitosamente' });
   } catch (error) {
-    console.error('Error al eliminar estación:', error)
-    res.status(500).json({ message: 'Error al eliminar estación' })
+    console.error('Error al eliminar estación:', error);
+    res.status(500).json({ message: 'Error interno al eliminar la estación' });
   }
-})
+});
 
-export default router
-
+export default router;

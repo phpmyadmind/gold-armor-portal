@@ -1,154 +1,103 @@
-import express from 'express'
-import getPool from '../config/database.js'
-import { authenticateToken, requireRole } from '../middleware/auth.js'
+import express from 'express';
+import getPool from '../config/database.js';
+import { authenticateToken, requireRole } from '../middleware/auth.js';
 
-const router = express.Router()
+const router = express.Router();
 
-// --- FUNCIONES AUXILIARES (sin cambios) ---
-function columnasAOpciones(row) {
-  const opciones = []
-  for (let i = 1; i <= 6; i++) {
-    const opcion = row[`opcion${i}`]
-    if (opcion && opcion.trim()) {
-      opciones.push(opcion)
-    }
-  }
-  return opciones
-}
-
-function opcionesAColumnas(opciones) {
-  const columnas = { opcion1: null, opcion2: null, opcion3: null, opcion4: null, opcion5: null, opcion6: null }
-  if (Array.isArray(opciones)) {
-    opciones.forEach((opcion, index) => {
-      if (index < 6 && opcion && opcion.trim()) {
-        columnas[`opcion${index + 1}`] = opcion
+// --- Middleware para parsear campos JSON de la BD ---
+const parseJsonFields = (req, res, next) => {
+  const originalJson = res.json;
+  res.json = function(body) {
+    const parseFields = (item) => {
+      if (item) {
+        // Parsear 'opciones' si es un string JSON
+        if (typeof item.opciones === 'string') {
+          try { item.opciones = JSON.parse(item.opciones); } catch (e) { item.opciones = []; }
+        }
+        // Parsear 'respuestaCorrecta' si es un string JSON
+        if (typeof item.respuestaCorrecta === 'string') {
+          try { item.respuestaCorrecta = JSON.parse(item.respuestaCorrecta); } catch (e) { /* No hacer nada si no es JSON */ }
+        }
       }
-    })
-  }
-  return columnas
-}
+      return item;
+    };
 
-function respuestaAIndices(respuestaCorrecta, opciones, tipo) {
-  if (!respuestaCorrecta) return tipo === 'multiple' ? [] : ''
-  if (tipo === 'multiple') {
-    if (!Array.isArray(respuestaCorrecta)) respuestaCorrecta = [respuestaCorrecta]
-    return respuestaCorrecta.map(val => {
-      const idx = opciones.indexOf(val)
-      return idx >= 0 ? idx : null
-    }).filter(i => i !== null)
-  } else {
-    const val = Array.isArray(respuestaCorrecta) ? respuestaCorrecta[0] : respuestaCorrecta
-    const idx = opciones.indexOf(val)
-    return idx >= 0 ? idx.toString() : ''
-  }
-}
+    if (Array.isArray(body)) {
+      body.forEach(parseFields);
+    } else if (typeof body === 'object' && body !== null) {
+      parseFields(body);
+    }
+    
+    originalJson.call(this, body);
+  };
+  next();
+};
 
-function formatQuestionForAdmin(q) {
-  const opciones = columnasAOpciones(q)
-  const respuestaCorrecta = q.respuestaCorrecta_valor
-  let respuestaParaUI = respuestaCorrecta
-  if (q.tipo === 'multiple' && respuestaCorrecta && typeof respuestaCorrecta === 'string') {
-    try { respuestaParaUI = JSON.parse(respuestaCorrecta) } catch (e) { respuestaParaUI = [respuestaCorrecta] }
-  }
-  const respuestaIndices = respuestaAIndices(respuestaParaUI, opciones, q.tipo)
-  return { ...q, opciones, respuestaCorrecta: respuestaParaUI, respuestaIndices }
-}
+router.use(parseJsonFields);
 
-function formatQuestionForQuiz(q) {
-  const opciones = columnasAOpciones(q)
-  const respuestaCorrecta = q.respuestaCorrecta_valor
-  let respuestaParaUI = respuestaCorrecta
-  if (q.tipo === 'multiple' && respuestaCorrecta && typeof respuestaCorrecta === 'string') {
-    try { respuestaParaUI = JSON.parse(respuestaCorrecta) } catch (e) { respuestaParaUI = [respuestaCorrecta] }
-  }
-  return { ...q, opciones, respuestaCorrecta: respuestaParaUI }
-}
+const adminOnly = requireRole('admin');
 
-// --- ENDPOINTS ---
+// --- ENDPOINTS COMPLETOS Y CORREGIDOS ---
 
-// Obtener todas las preguntas (para admin)
-// Devuelve todas las preguntas, incluido su estado
-router.get('/', authenticateToken, requireRole('admin'), async (req, res) => {
+// Obtener todas las preguntas (admin)
+router.get('/', authenticateToken, adminOnly, async (req, res) => {
   try {
-    const pool = getPool()
-    const [questions] = await pool.execute('SELECT * FROM questions ORDER BY estacionId, id')
-    res.json(questions.map(q => formatQuestionForAdmin(q)))
+    const pool = getPool();
+    const [questions] = await pool.execute('SELECT * FROM questions ORDER BY estacionId, id');
+    res.json(questions);
   } catch (error) {
-    console.error('Error al obtener preguntas:', error)
-    res.status(500).json({ message: 'Error al obtener preguntas', details: error.message })
+    console.error('Error al obtener preguntas:', error);
+    res.status(500).json({ message: 'Error interno al obtener preguntas' });
   }
-})
+});
 
-// Obtener preguntas por estación (para Quizz)
-// MODIFICADO: Solo devuelve preguntas con estado 'active'
+// Obtener preguntas activas por estación (para Quizz)
 router.get('/station/:stationId', async (req, res) => {
   try {
-    const pool = getPool()
-    const { stationId } = req.params
+    const pool = getPool();
+    const { stationId } = req.params;
     const [questions] = await pool.execute(
-      "SELECT * FROM questions WHERE estacionId = ? AND status = 'active' ORDER BY id",
+      `SELECT * FROM questions WHERE estacionId = ? AND status = 'active' ORDER BY id`,
       [stationId]
-    )
-    const formattedQuestions = questions.map(q => formatQuestionForQuiz(q)).filter(q => Array.isArray(q.opciones) && q.opciones.length > 0)
-    res.json(formattedQuestions)
+    );
+    res.json(questions);
   } catch (error) {
-    console.error('Error al obtener preguntas por estación:', error)
-    res.status(500).json({ message: 'Error al obtener preguntas', details: error.message })
+    console.error('Error al obtener preguntas por estación:', error);
+    res.status(500).json({ message: 'Error interno al obtener preguntas' });
   }
-})
+});
 
-// Obtener preguntas por speaker (para Quizz)
-// MODIFICADO: Solo devuelve preguntas con estado 'active'
-router.get('/speaker/:speakerId', async (req, res) => {
+
+// Crear nueva pregunta
+router.post('/', authenticateToken, adminOnly, async (req, res) => {
   try {
-    const pool = getPool()
-    const { speakerId } = req.params
-    const [questions] = await pool.execute(
-      "SELECT * FROM questions WHERE speakerId = ? AND status = 'active' ORDER BY estacionId, id",
-      [speakerId]
-    )
-    res.json(questions.map(q => formatQuestionForQuiz(q)))
-  } catch (error) {
-    console.error('Error al obtener preguntas por speaker:', error)
-    res.status(500).json({ message: 'Error al obtener preguntas', details: error.message })
-  }
-})
+    const pool = getPool();
+    const { texto, tipo = 'simple', opciones = [], respuestaCorrecta, speakerId, estacionId, eventoId } = req.body;
 
-// Crear pregunta
-// MODIFICADO: Asigna 'draft' como estado por defecto
-router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
-  try {
-    const pool = getPool()
-    let { texto, tipo, opciones, respuestaCorrecta, speakerId, estacionId, eventoId } = req.body
-    if (!texto || !estacionId) return res.status(400).json({ message: 'Texto y estacionId son requeridos' })
-
-    let respuestaParaBD = null
-    if (tipo === 'multiple') {
-      if (Array.isArray(respuestaCorrecta) && respuestaCorrecta.length > 0) {
-        respuestaParaBD = JSON.stringify(respuestaCorrecta.map(idx => opciones[parseInt(idx)]).filter(v => v !== null))
-      }
-    } else {
-      const idx = parseInt(respuestaCorrecta)
-      if (idx >= 0 && idx < opciones.length) respuestaParaBD = opciones[idx]
+    if (!texto || !estacionId) {
+      return res.status(400).json({ message: 'Los campos texto y estacionId son requeridos.' });
     }
 
-    const columnasOpciones = opcionesAColumnas(opciones)
+    const opcionesString = JSON.stringify(opciones);
+    const respuestaCorrectaString = respuestaCorrecta ? JSON.stringify(respuestaCorrecta) : null;
 
     const [result] = await pool.execute(
-      `INSERT INTO questions (texto, tipo, opcion1, opcion2, opcion3, opcion4, opcion5, opcion6, respuestaCorrecta_valor, speakerId, estacionId, eventoId, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')`,
-      [texto, tipo || 'simple', columnasOpciones.opcion1, columnasOpciones.opcion2, columnasOpciones.opcion3, columnasOpciones.opcion4, columnasOpciones.opcion5, columnasOpciones.opcion6, respuestaParaBD, speakerId || null, estacionId, eventoId || null]
-    )
-    
-    res.status(201).json({ id: result.insertId, texto, tipo, opciones, respuestaCorrecta: respuestaParaBD, status: 'draft' })
-  } catch (error) {
-    console.error('Error al crear pregunta:', error)
-    res.status(500).json({ message: 'Error al crear pregunta', details: error.message })
-  }
-})
+      `INSERT INTO questions (texto, tipo, opciones, respuestaCorrecta, speakerId, estacionId, eventoId, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'draft')`,
+      [texto, tipo, opcionesString, respuestaCorrectaString, speakerId || null, estacionId, eventoId || null]
+    );
 
-// NUEVO: Actualizar el estado de una pregunta
-router.put('/:id/status', authenticateToken, requireRole('admin'), async (req, res) => {
+    const [newQuestion] = await pool.execute('SELECT * FROM questions WHERE id = ?', [result.insertId]);
+    res.status(201).json(newQuestion[0]);
+
+  } catch (error) {
+    console.error('Error al crear la pregunta:', error);
+    res.status(500).json({ message: 'Error interno al crear la pregunta.' });
+  }
+});
+
+// Actualizar el estado de una pregunta
+router.put('/:id/status', authenticateToken, adminOnly, async (req, res) => {
   try {
     const pool = getPool();
     const { id } = req.params;
@@ -158,64 +107,67 @@ router.put('/:id/status', authenticateToken, requireRole('admin'), async (req, r
       return res.status(400).json({ message: "El estado proporcionado no es válido. Debe ser 'draft', 'active' o 'inactive'." });
     }
 
-    const [result] = await pool.execute(
-      'UPDATE questions SET status = ? WHERE id = ?',
-      [status, id]
-    );
+    const [result] = await pool.execute('UPDATE questions SET status = ? WHERE id = ?', [status, id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: 'No se encontró ninguna pregunta con el ID proporcionado.' });
     }
 
-    res.json({ message: `El estado de la pregunta ha sido actualizado a '${status}'.` });
+    const [updatedQuestion] = await pool.execute('SELECT * FROM questions WHERE id = ?', [id]);
+    res.json(updatedQuestion[0]);
+
   } catch (error) {
     console.error('Error al actualizar el estado de la pregunta:', error);
     res.status(500).json({ message: 'Error interno al actualizar el estado.' });
   }
 });
 
-// Actualizar pregunta (sin cambios, no modifica el estado)
-router.put('/:id', authenticateToken, requireRole('admin'), async (req, res) => {
+// Actualizar una pregunta completa
+router.put('/:id', authenticateToken, adminOnly, async (req, res) => {
   try {
-    const pool = getPool()
-    const { id } = req.params
-    let { texto, tipo, opciones, respuestaCorrecta, speakerId, estacionId, eventoId } = req.body
+    const pool = getPool();
+    const { id } = req.params;
+    const { texto, tipo, opciones, respuestaCorrecta, speakerId, estacionId, eventoId } = req.body;
+
+    const opcionesString = opciones ? JSON.stringify(opciones) : null;
+    const respuestaCorrectaString = respuestaCorrecta ? JSON.stringify(respuestaCorrecta) : null;
+
+    const [result] = await pool.execute(
+      `UPDATE questions SET texto = ?, tipo = ?, opciones = ?, respuestaCorrecta = ?, speakerId = ?, estacionId = ?, eventoId = ? WHERE id = ?`,
+      [texto, tipo, opcionesString, respuestaCorrectaString, speakerId, estacionId, eventoId, id]
+    );
+
+    if (result.affectedRows === 0) {
+        return res.status(404).json({ message: 'Pregunta no encontrada.' });
+    }
     
-    let respuestaParaBD = null
-    if (tipo === 'multiple') {
-      if (Array.isArray(respuestaCorrecta) && respuestaCorrecta.length > 0) {
-        respuestaParaBD = JSON.stringify(respuestaCorrecta.map(idx => opciones[parseInt(idx)]).filter(v => v !== null))
-      }
-    } else {
-      const idx = parseInt(respuestaCorrecta)
-      if (idx >= 0 && idx < opciones.length) respuestaParaBD = opciones[idx]
+    const [updatedQuestion] = await pool.execute('SELECT * FROM questions WHERE id = ?', [id]);
+    res.json(updatedQuestion[0]);
+
+  } catch (error) {
+    console.error('Error al actualizar la pregunta:', error);
+    res.status(500).json({ message: 'Error interno al actualizar la pregunta.' });
+  }
+});
+
+// Eliminar una pregunta
+router.delete('/:id', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const pool = getPool();
+    const { id } = req.params;
+
+    const [result] = await pool.execute('DELETE FROM questions WHERE id = ?', [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Pregunta no encontrada, no se pudo eliminar.' });
     }
 
-    const columnasOpciones = opcionesAColumnas(opciones)
-
-    await pool.execute(
-      `UPDATE questions SET texto = ?, tipo = ?, opcion1 = ?, opcion2 = ?, opcion3 = ?, opcion4 = ?, opcion5 = ?, opcion6 = ?, respuestaCorrecta_valor = ?, speakerId = ?, estacionId = ?, eventoId = ? WHERE id = ?`,
-      [texto, tipo, columnasOpciones.opcion1, columnasOpciones.opcion2, columnasOpciones.opcion3, columnasOpciones.opcion4, columnasOpciones.opcion5, columnasOpciones.opcion6, respuestaParaBD, speakerId || null, estacionId, eventoId, id]
-    )
+    res.json({ message: 'Pregunta eliminada exitosamente.', id: parseInt(id) });
     
-    res.json({ message: 'Pregunta actualizada' })
   } catch (error) {
-    console.error('Error al actualizar pregunta:', error)
-    res.status(500).json({ message: 'Error al actualizar pregunta' })
+    console.error('Error al eliminar la pregunta:', error);
+    res.status(500).json({ message: 'Error interno al eliminar la pregunta.' });
   }
-})
+});
 
-// Eliminar pregunta (sin cambios)
-router.delete('/:id', authenticateToken, requireRole('admin'), async (req, res) => {
-  try {
-    const pool = getPool()
-    const { id } = req.params
-    await pool.execute('DELETE FROM questions WHERE id = ?', [id])
-    res.json({ message: 'Pregunta eliminada' })
-  } catch (error) {
-    console.error('Error al eliminar pregunta:', error)
-    res.status(500).json({ message: 'Error al eliminar pregunta' })
-  }
-})
-
-export default router
+export default router;

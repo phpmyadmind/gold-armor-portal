@@ -1,28 +1,27 @@
-import express from 'express'
-import cors from 'cors'
-import dotenv from 'dotenv'
-import authRoutes from './routes/auth.js'
-import eventsRoutes from './routes/events.js'
-import usersRoutes from './routes/users.js'
-import stationsRoutes from './routes/stations.js'
-import questionsRoutes from './routes/questions.js'
-import responsesRoutes from './routes/responses.js'
-import dashboardRoutes from './routes/dashboard.js'
-import settingsRoutes from './routes/settings.js'
-import runMigrations from './migrations.js'
-import { ensureDatabaseExists, createPool } from './config/database.js'
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import authRoutes from './routes/auth.js';
+import eventsRoutes from './routes/events.js';
+import usersRoutes from './routes/users.js';
+import stationsRoutes from './routes/stations.js';
+import questionsRoutes from './routes/questions.js';
+import responsesRoutes from './routes/responses.js';
+import dashboardRoutes from './routes/dashboard.js';
+import settingsRoutes from './routes/settings.js';
+import runMigrations from './migrations.js';
+import { ensureDatabaseExists, createPool } from './config/database.js';
 
-dotenv.config()
+dotenv.config();
 
-const app = express()
-const PORT = process.env.PORT || 5040
+const app = express();
+const PORT = process.env.PORT || 5040;
 
 // --- Configuración de CORS desde .env ---
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Permitir solicitudes sin 'origin' (ej. Postman) o si el origen está en la lista blanca
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -61,24 +60,24 @@ async function startServer() {
     console.log('🔄 Ejecutando migraciones...');
     await runMigrations();
     
-    console.log('🚀 Servidor listo para recibir peticiones');
+    // Mover app.listen aquí asegura que el servidor solo acepte peticiones
+    // después de que todo esté inicializado correctamente.
+    app.listen(PORT, () => {
+      console.log(`🚀 Servidor corriendo y listo para recibir peticiones en http://localhost:${PORT}`);
+    }).on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`❌ El puerto ${PORT} está en uso. ¿Hay otra instancia del servidor corriendo?`);
+      } else {
+        console.error('🔥 Error al iniciar el listener del servidor:', err);
+      }
+      process.exit(1);
+    });
 
   } catch (err) {
-    console.error('❌ Error fatal al inicializar el servidor:', err);
+    console.error('❌ Error fatal durante la inicialización del servidor:', err);
     process.exit(1);
   }
 }
 
+// Iniciar todo el proceso.
 startServer();
-
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-}).on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`❌ El puerto ${PORT} está en uso.`);
-    process.exit(1);
-  } else {
-    console.error('Error al iniciar el listener del servidor:', err);
-    process.exit(1);
-  }
-});
