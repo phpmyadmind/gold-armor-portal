@@ -223,7 +223,7 @@ const StationDetail = () => {
             </div>
 
             <div>
-              <h2 className="text-white text-3xl font-bold mb-4">QUIZ</h2>
+              <h2 className="text-white text-3xl font-bold mb-4">QUIZZ</h2>
               {hasCompleted ? (
                 <div className="bg-green-500 bg-opacity-20 border border-green-500 rounded-lg p-4 mb-4">
                   <p className="text-white">✓ Ya has completado el quiz de esta estación</p>
